@@ -1,0 +1,21 @@
+
+# Allow Cursor to access docs/
+!docs/
+!ansible-docs/migration-plan.md
+
+.vault_pass
+*.pem
+*.key
+node_modules/
+.venv/
+__pycache__/
+.DS_Store
+*.pyc
+*.log
+
+# Ignore large binary files
+*.iso
+*.img
+*.dmg
+*.zip
+*.tar.gz

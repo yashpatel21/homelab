@@ -1,0 +1,24 @@
+---
+all:
+    children:
+        homelab:
+            hosts:
+                ubuntu-vm:
+                    ansible_host: 192.168.1.20
+                    ansible_user: yash
+                proxmox:
+                    ansible_host: 192.168.1.10
+                    ansible_user: admin
+                    # Proxmox admin user needs sudo for privileged operations
+                    ansible_become: yes
+                    ansible_become_method: sudo
+                opnsense:
+                    ansible_host: 192.168.1.1
+                    ansible_user: root
+                    # Root doesn't need sudo
+                    ansible_become: no
+            vars:
+                # Don't prompt for SSH key verification
+                ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+                # Python interpreter location
+                ansible_python_interpreter: /usr/bin/python3

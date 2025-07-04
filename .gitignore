@@ -1,0 +1,16 @@
+.vault_pass
+*.pem
+*.key
+*_rsa
+*_rsa.pub
+
+# Temporary Ansible files
+*.retry
+.vscode/
+__pycache__/
+*.pyc
+
+# Local development files
+.env
+.vagrant/
+temp/

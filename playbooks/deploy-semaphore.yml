@@ -1,0 +1,134 @@
+---
+- name: Deploy Semaphore Ansible UI
+  hosts: ubuntu-vm
+  vars_files:
+    - ../group_vars/all/vars.yml
+  
+  tasks:
+    - name: Display what we're about to do
+      debug:
+        msg: |
+          Deploying Semaphore with the following configuration:
+          - Version: {{ semaphore_version }}
+          - Data directory: {{ semaphore_data_dir }}
+          - Admin password: [ENCRYPTED]
+          - Domain: semaphore.{{ homelab_domain }}
+
+    - name: Create Semaphore data directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: yash
+        group: yash
+        mode: '0755'
+      become: true
+      loop:
+        - "{{ semaphore_data_dir }}/data"
+        - "{{ semaphore_data_dir }}/mysql"
+        - "{{ semaphore_data_dir }}/config"
+      register: directory_creation
+
+    - name: Fix Semaphore data directory permissions for container
+      file:
+        path: "{{ semaphore_data_dir }}/data"
+        owner: 1001
+        group: 1001
+        recurse: true
+      become: true
+
+    - name: Show directory creation results
+      debug:
+        msg: "Created directory: {{ item.item }}"
+      loop: "{{ directory_creation.results }}"
+      when: item.changed
+
+    - name: Check if Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+      become: true
+
+    - name: Ensure homelab Docker network exists
+      community.docker.docker_network:
+        name: "{{ docker_network_name }}"
+        state: present
+      register: network_result
+
+    - name: Show network creation result
+      debug:
+        msg: "Docker network '{{ docker_network_name }}' status: {{ 'created' if network_result.changed else 'already exists' }}"
+
+    - name: Template Semaphore Docker Compose file
+      template:
+        src: semaphore-compose.yml.j2
+        dest: "{{ semaphore_data_dir }}/docker-compose.yml"
+        owner: yash
+        group: yash
+        mode: '0644'
+        backup: true
+      register: compose_file
+      notify: restart semaphore
+
+    - name: Show if compose file changed
+      debug:
+        msg: "Docker Compose file {{ 'updated' if compose_file.changed else 'unchanged' }}"
+
+    - name: Deploy Semaphore stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ semaphore_data_dir }}"
+        state: present
+        wait: true
+        wait_timeout: 300
+      register: deployment_result
+
+    - name: Show deployment results
+      debug:
+        msg: |
+          Deployment completed successfully!
+          - Changed: {{ deployment_result.changed }}
+          - Stack deployed to: {{ semaphore_data_dir }}
+
+    - name: Wait for MySQL to be ready
+      community.docker.docker_container_info:
+        name: semaphore-mysql
+      register: mysql_info
+      until: mysql_info.container.State.Status == "running"
+      retries: 30
+      delay: 5
+
+    - name: Wait for Semaphore to be ready
+      uri:
+        url: "http://localhost:{{ semaphore_port }}"
+        method: GET
+        status_code: 200
+      register: semaphore_health
+      until: semaphore_health.status == 200
+      retries: 60
+      delay: 5
+
+    - name: Display success message
+      debug:
+        msg: |
+          🎉 Semaphore deployment completed successfully!
+          
+          Access URLs:
+          - Local: http://{{ ansible_host }}:{{ semaphore_port }}
+          - Domain: https://semaphore.{{ homelab_domain }}
+          
+          Login credentials:
+          - Username: admin
+          - Password: [Check your vault.yml file]
+          
+          Next steps:
+          1. Open Semaphore in your browser
+          2. Log in with admin credentials
+          3. Add your SSH key for repository access
+          4. Create your first project pointing to your GitHub repo
+
+  handlers:
+    - name: restart semaphore
+      community.docker.docker_compose_v2:
+        project_src: "{{ semaphore_data_dir }}"
+        state: present
+        restarted: true

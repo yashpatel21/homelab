@@ -1,0 +1,20 @@
+---
+# Non-sensitive configuration that's safe to store in Git
+
+homelab_domain: 'radiowaves.app'
+
+# Semaphore configuration
+semaphore_version: 'v2.13.15'
+semaphore_port: 3001
+semaphore_data_dir: '/data/semaphore'
+
+# System configuration
+timezone: 'America/New_York'
+
+# Docker network for services
+docker_network_name: 'homelab'
+
+# Reference encrypted variables from vault.yml
+semaphore_admin_password: '{{ vault_semaphore_admin_password }}'
+semaphore_access_key_encryption: '{{ vault_semaphore_access_key_encryption }}'
+mysql_password: '{{ vault_mysql_password }}'

@@ -114,12 +114,9 @@ dns_failover_schedule: "* * * * *"  # Every minute for OPNsense AdGuard Home fai
 # group_vars/all/vault.yml (encrypted with ansible-vault)
 #
 # 📝 TO UPDATE SENSITIVE DATA:
-# 1. Copy group_vars/all/vault_template.yml to group_vars/all/vault.yml
+# 1. Copy group_vars/vault_template.yml to group_vars/all/vault.yml
 # 2. Edit vault.yml with your actual sensitive values
 # 3. Encrypt: ansible-vault encrypt group_vars/all/vault.yml
-#
-# ✅ SAFE TO COMMIT:
-# This file (vars.yml) contains no sensitive data and is safe to commit to git
 #
 # =============================================================================
 

@@ -2,69 +2,31 @@
 # HOMELAB ANSIBLE INVENTORY
 # =============================================================================
 # 
-# This inventory file defines all the hosts in your homelab infrastructure.
-# Update the IP addresses and usernames to match your actual setup.
+# This inventory file defines all the hosts in the homelab infrastructure.
 #
 # =============================================================================
 
 all:
     children:
-        # -------------------------------------------------------------------------
-        # UBUNTU SERVER HOSTS
-        # -------------------------------------------------------------------------
-        # Your main Ubuntu server VM that will run Docker services
         ubuntu_servers:
             hosts:
                 homelab-server:
                     ansible_host: 192.168.1.20
                     ansible_user: yash
                     ansible_become: yes
-                    # ansible_ssh_private_key_file: ~/.ssh/id_rsa  # Optional: specify key file
-        # -------------------------------------------------------------------------
-        # PROXMOX HOSTS (Optional)
-        # -------------------------------------------------------------------------
-        # Your Proxmox hypervisor host - used for some storage and user config
         proxmox_hosts:
             hosts:
                 proxmox-host:
                     ansible_host: 192.168.1.10
                     ansible_user: admin
                     ansible_become: yes
-                    # ansible_ssh_private_key_file: ~/.ssh/id_rsa  # Optional: specify key file
-        # -------------------------------------------------------------------------
-        # OPNSENSE HOSTS (Future Use)
-        # -------------------------------------------------------------------------
-        # OPNsense firewall - currently not automated (GUI-based configuration)
-        # Included for future automation possibilities
         opnsense_hosts:
             hosts:
                 opnsense-firewall:
                     ansible_host: 192.168.1.1
                     ansible_user: root
                     ansible_become: yes
-                    # Note: OPNsense configuration is primarily GUI-based
-                    # This entry is for potential future automation
-
-# =============================================================================
-# INVENTORY GROUPS EXPLANATION
-# =============================================================================
-#
-# ubuntu_servers: Ubuntu Server VM (192.168.1.20)
-# - Primary service host running Docker containers
-# - Target for most automation playbooks
-# - Runs: Traefik, AdGuard, NTFY, Uptime Kuma, Homarr, etc.
-#
-# proxmox_hosts: Proxmox VE Hypervisor (192.168.1.10)
-# - Basic storage and user configuration only
-# - VM management remains manual via GUI
-# - Limited automation scope
-#
-# opnsense_hosts: OPNsense Firewall (192.168.1.1)
-# - Currently not automated (GUI-based configuration)
-# - Included for potential future automation
-# - Manual tasks: DNS overrides, DHCP, firewall rules, certificates
-#
-# =============================================================================
+                    
 
 # =============================================================================
 # TESTING CONNECTIVITY

@@ -5,10 +5,9 @@
 # 🔒 THIS FILE CONTAINS SENSITIVE DATA PLACEHOLDERS
 # 
 # INSTRUCTIONS:
-# 1. Copy this file to vault.yml: cp vault_template.yml vault.yml
+# 1. Copy this file to vault.yml: cp vault_template.yml ./all/vault.yml
 # 2. Replace all "REPLACE_WITH_YOUR_XXX" placeholders with real values
 # 3. Encrypt the file: ansible-vault encrypt vault.yml
-# 4. Never commit vault.yml to git (only commit this template)
 #
 # =============================================================================
 
@@ -36,9 +35,9 @@ ssh_public_keys:
   # Add more SSH keys if needed:
   # - "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY_2"
 
-# How to get your SSH public key:
-# Run: cat ~/.ssh/id_rsa.pub (or ~/.ssh/id_ed25519.pub)
-# Copy the entire output starting with ssh-rsa or ssh-ed25519
+# How to get SSH public key:
+# Run: cat ~/.ssh/id_ed25519.pub (or ~/.ssh/id_rsa.pub)
+# Copy the entire output starting with ssh-ed25519 or ssh-rsa
 
 # -----------------------------------------------------------------------------
 # NTFY CONFIGURATION
@@ -81,7 +80,7 @@ vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 # EXAMPLE COMPLETED VAULT FILE
 # =============================================================================
 #
-# Here's what your completed vault.yml should look like (with real values):
+# Here's what the completed vault.yml should look like (with real values):
 #
 # vault_cloudflare_api_token: "abc123def456..."
 # vault_cloudflare_account_id: "1a2b3c4d5e6f..."
@@ -104,12 +103,9 @@ vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 # - Keep vault.yml encrypted at all times
 # - Use strong, unique passwords
 # - Rotate API tokens regularly
-# - Backup your vault password securely
+# - Backup vault password securely
 #
 # ❌ DON'T:
 # - Commit unencrypted vault.yml to git
-# - Share vault passwords via insecure channels
-# - Use weak or reused passwords
-# - Store vault password in the same location as vault.yml
 #
 # ============================================================================= 

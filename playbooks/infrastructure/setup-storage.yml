@@ -1,0 +1,267 @@
+---
+# =============================================================================
+# PHASE 1: Infrastructure Foundation - Storage Configuration
+# =============================================================================
+# 
+# This playbook handles storage configuration for both Proxmox host and Ubuntu
+# server, including 2TB drive formatting/mounting and data directory setup.
+#
+# Prerequisites:
+# - Complete infrastructure setup from prerequisites.md
+# - SSH access configured on all hosts
+# - Base system setup completed (setup-base.yml)
+#
+# What this playbook does:
+# 1. Configures Proxmox host 2TB storage (formatting, mounting at /storage)
+# 2. Configures Ubuntu server 2TB storage (formatting, mounting at /storage)
+# 3. Creates /data directory structure on Ubuntu with proper permissions:
+#    - /data/scripts subdirectory for system and monitoring scripts
+#    - /data/compose subdirectory for all Docker Compose files
+# 4. Verifies all storage configurations
+#
+# Manual steps required BEFORE running this playbook:
+# - Complete ALL tasks in prerequisites.md
+# - Run setup-base.yml playbook first
+#
+# HOW TO RUN THIS PLAYBOOK:
+# ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-storage.yml --ask-vault-pass
+#
+# =============================================================================
+
+# =============================================================================
+# PROXMOX HOST STORAGE CONFIGURATION (Run First)
+# =============================================================================
+
+- name: "Phase 1.2 - Proxmox Host Storage Setup"
+  hosts: proxmox_hosts
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # PROXMOX STORAGE CONFIGURATION
+    # -------------------------------------------------------------------------
+
+    - name: "Check if 2TB storage device exists"
+      stat:
+        path: "{{ proxmox_storage_device }}"
+      register: proxmox_storage_device_check
+      tags: [proxmox, storage]
+
+    - name: "Check if 2TB storage device is already formatted"
+      command: "blkid {{ proxmox_storage_device }}"
+      register: proxmox_storage_formatted
+      failed_when: false
+      changed_when: false
+      when: proxmox_storage_device_check.stat.exists
+      tags: [proxmox, storage]
+
+    - name: "Format 2TB storage device"
+      filesystem:
+        fstype: ext4
+        dev: "{{ proxmox_storage_device }}"
+      when: 
+        - proxmox_storage_device_check.stat.exists
+        - proxmox_storage_formatted.rc != 0
+      tags: [proxmox, storage]
+
+    - name: "Create storage directory"
+      file:
+        path: /storage
+        state: directory
+        mode: '0755'
+      tags: [proxmox, storage]
+
+    - name: "Mount 2TB storage device"
+      mount:
+        path: /storage
+        src: "{{ proxmox_storage_device }}"
+        fstype: ext4
+        opts: defaults
+        state: mounted
+      when: proxmox_storage_device_check.stat.exists
+      tags: [proxmox, storage]
+
+    - name: "Set ownership of storage directory"
+      file:
+        path: /storage
+        owner: root
+        group: root
+        mode: '0755'
+        state: directory
+      when: proxmox_storage_device_check.stat.exists
+      tags: [proxmox, storage]
+
+    - name: "Verify storage mount"
+      shell: "df -h | grep /storage"
+      register: proxmox_storage_verification
+      changed_when: false
+      failed_when: false
+      when: proxmox_storage_device_check.stat.exists
+      tags: [proxmox, storage]
+
+    - name: "Display storage verification"
+      debug:
+        msg: "Proxmox storage verification: {{ proxmox_storage_verification.stdout }}"
+      when: 
+        - proxmox_storage_device_check.stat.exists
+        - proxmox_storage_verification.stdout != ""
+      tags: [proxmox, storage]
+
+# =============================================================================
+# UBUNTU SERVER STORAGE CONFIGURATION (Run After Proxmox)
+# =============================================================================
+
+- name: "Phase 1.2 - Ubuntu Server Storage Setup"
+  hosts: ubuntu_servers
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # 2TB STORAGE CONFIGURATION
+    # -------------------------------------------------------------------------
+
+    - name: "Check if 2TB storage device exists"
+      stat:
+        path: "{{ storage_device }}"
+      register: storage_device_check
+      tags: [storage, ubuntu]
+
+    - name: "Check if 2TB storage device is already formatted"
+      command: "blkid {{ storage_device }}"
+      register: storage_formatted
+      failed_when: false
+      changed_when: false
+      when: storage_device_check.stat.exists
+      tags: [storage, ubuntu]
+
+    - name: "Format 2TB storage device"
+      filesystem:
+        fstype: ext4
+        dev: "{{ storage_device }}"
+      when: 
+        - storage_device_check.stat.exists
+        - storage_formatted.rc != 0
+      tags: [storage, ubuntu]
+
+    - name: "Create storage directory"
+      file:
+        path: "{{ storage_directory }}"
+        state: directory
+        mode: '0755'
+      tags: [storage, ubuntu]
+
+    - name: "Mount 2TB storage device"
+      mount:
+        path: "{{ storage_directory }}"
+        src: "{{ storage_device }}"
+        fstype: ext4
+        opts: defaults
+        state: mounted
+      when: storage_device_check.stat.exists
+      tags: [storage, ubuntu]
+
+    - name: "Set ownership of storage directory"
+      file:
+        path: "{{ storage_directory }}"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        state: directory
+      when: storage_device_check.stat.exists
+      tags: [storage, ubuntu]
+
+    - name: "Verify storage mount"
+      shell: "df -h | grep {{ storage_directory }}"
+      register: storage_verification
+      changed_when: false
+      failed_when: false
+      when: storage_device_check.stat.exists
+      tags: [storage, ubuntu]
+
+    - name: "Display storage verification"
+      debug:
+        msg: "Storage verification: {{ storage_verification.stdout }}"
+      when: 
+        - storage_device_check.stat.exists
+        - storage_verification.stdout != ""
+      tags: [storage, ubuntu]
+
+    # -------------------------------------------------------------------------
+    # DATA DIRECTORY STRUCTURE CREATION
+    # -------------------------------------------------------------------------
+
+    - name: "Create main data directory"
+      file:
+        path: "{{ data_directory }}"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+      tags: [data, ubuntu]
+
+    - name: "Create scripts subdirectory"
+      file:
+        path: "{{ data_directory }}/scripts"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+      tags: [data, ubuntu]
+
+    - name: "Create compose subdirectory"
+      file:
+        path: "{{ data_directory }}/compose"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+      tags: [data, ubuntu]
+
+    - name: "Verify data directory structure"
+      shell: "ls -la {{ data_directory }}/"
+      register: data_directory_verification
+      changed_when: false
+      tags: [data, ubuntu]
+
+    - name: "Display data directory structure"
+      debug:
+        msg: "Data directory structure: {{ data_directory_verification.stdout_lines }}"
+      tags: [data, ubuntu]
+
+  # ---------------------------------------------------------------------------
+  # HANDLERS
+  # ---------------------------------------------------------------------------
+
+  handlers:
+    # No handlers needed for current tasks
+
+# =============================================================================
+# PLAYBOOK EXECUTION SUMMARY
+# =============================================================================
+#
+# This playbook completes the storage setup for your homelab infrastructure.
+# 
+# Execution Order:
+# 1. Proxmox Host: 2TB storage configuration (format/mount at /storage)
+# 2. Ubuntu Server: 2TB storage configuration (format/mount at /storage)
+# 3. Ubuntu Server: /data directory and /data/scripts subdirectory creation with proper permissions
+#
+# What was configured:
+# ✅ Proxmox host storage devices formatted and mounted (/storage)
+# ✅ Ubuntu server storage devices formatted and mounted (/storage)
+# ✅ Ubuntu /data directory structure created:
+#     - /data/scripts subdirectory for system and monitoring scripts
+#     - /data/compose subdirectory for all Docker Compose files
+# ✅ All directories have proper ownership and permissions
+#
+# Prerequisites (completed before this playbook):
+# ✅ Infrastructure setup (Proxmox installation, Ubuntu VM creation)
+# ✅ Base system setup (packages, SSH, users, system configuration)
+#
+# Next steps:
+# 1. Verify storage is properly mounted on both hosts
+# 2. Test directory permissions and ownership
+# 3. Proceed to setup-docker.yml playbook
+#
+# ============================================================================= 

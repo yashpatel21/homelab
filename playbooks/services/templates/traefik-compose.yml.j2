@@ -1,0 +1,99 @@
+---
+# =============================================================================
+# Traefik Reverse Proxy with SSL Automation
+# =============================================================================
+# 
+# This Docker Compose file deploys Traefik reverse proxy with:
+# - Let's Encrypt SSL certificates via Cloudflare DNS challenge
+# - Traefik dashboard with SSL
+# - Whoami test service for SSL verification
+# - Watchtower labels for automatic updates
+#
+# Generated from Ansible template: traefik-compose.yml.j2
+# =============================================================================
+
+services:
+  traefik:
+    image: "traefik:v3.4"
+    container_name: "traefik"
+    restart: unless-stopped
+    command:
+      # API Configuration
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      
+      # Docker Provider
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      
+      # Entry Points
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      
+      # Let's Encrypt Configuration
+      - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge=true"
+      - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.email={{ vault_letsencrypt_email }}"
+      - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.storage=/letsencrypt/acme.json"
+      
+      # DNS Challenge Configuration
+      - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge.delaybeforecheck=30"
+      - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+      
+      # Uncomment for testing with staging certificates
+      # - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      
+      # Uncomment for debug logging
+      # - "--log.level=DEBUG"
+      
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    
+    environment:
+      # Cloudflare API Configuration
+      - "CF_DNS_API_TOKEN={{ vault_cloudflare_api_token }}"
+      - "CF_ZONE_API_TOKEN={{ vault_cloudflare_api_token }}"
+    
+    volumes:
+      # SSL certificates storage
+      - "{{ data_directory }}/traefik/acme:/letsencrypt"
+      # Docker socket for service discovery
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    
+    networks:
+      - {{ homelab_network_name }}
+    
+    labels:
+      # Watchtower automatic updates
+      - "com.centurylinklabs.watchtower.enable=true"
+      
+      # Traefik dashboard routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.{{ base_domain }}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.routers.dashboard.service=api@internal"
+
+  whoami:
+    image: "traefik/whoami"
+    container_name: "whoami"
+    restart: unless-stopped
+    
+    networks:
+      - {{ homelab_network_name }}
+    
+    labels:
+      # Watchtower automatic updates
+      - "com.centurylinklabs.watchtower.enable=true"
+      
+      # Traefik routing configuration
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.{{ base_domain }}`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver={{ ssl_cert_resolver }}"
+
+networks:
+  {{ homelab_network_name }}:
+    external: true 

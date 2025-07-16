@@ -1,0 +1,63 @@
+#!/bin/bash
+
+LOG_FILE="/var/log/proxmox-update-check.log"
+NTFY_URL="https://ntfy.{{ base_domain }}"
+TOPIC="proxmox-alerts"
+NTFY_TOKEN="{{ vault_ntfy_token | default('PLACEHOLDER_TOKEN') }}"
+
+# Function to log messages
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE"
+}
+
+log_msg "Starting Proxmox update check"
+
+# Update package lists
+apt update > /dev/null 2>&1
+
+# Check for available updates
+UPDATES=$(apt list --upgradable 2>/dev/null | grep -v "WARNING" | wc -l)
+SECURITY_UPDATES=$(apt list --upgradable 2>/dev/null | grep -i security | wc -l)
+PVE_UPDATES=$(apt list --upgradable 2>/dev/null | grep -E "(pve-|proxmox)" | wc -l)
+
+log_msg "Found $((UPDATES-1)) total updates ($SECURITY_UPDATES security, $PVE_UPDATES Proxmox-related)"
+
+if [ $UPDATES -gt 1 ]; then
+    # Get list of packages (first 10)
+    PACKAGE_LIST=$(apt list --upgradable 2>/dev/null | grep -v "WARNING" | head -11 | tail -10 | cut -d'/' -f1 | tr '\n' ', ' | sed 's/,$//')
+    
+    if [ $((UPDATES-1)) -gt 10 ]; then
+        PACKAGE_LIST="$PACKAGE_LIST and $((UPDATES-11)) more..."
+    fi
+    
+    # Create properly formatted message with specific login instructions
+    MESSAGE="🖥️ Proxmox Updates Available
+
+Total packages: $((UPDATES-1))
+Security updates: $SECURITY_UPDATES
+Proxmox-related: $PVE_UPDATES
+
+Packages: $PACKAGE_LIST
+
+To update:
+- Web UI: Login as root@pam → Node → Updates → Upgrade
+- Command line: ssh admin@{{ proxmox_ip }} then 'su -' then 'apt upgrade'
+
+Check time: $(date '+%Y-%m-%d %H:%M')"
+    
+    # Send notification
+    if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
+         -H "Title: Proxmox Updates Available" \
+         -H "Priority: default" \
+         -H "Tags: proxmox,updates,system" \
+         -d "$MESSAGE" \
+         "$NTFY_URL/$TOPIC" 2>>"$LOG_FILE"; then
+        log_msg "Update notification sent successfully"
+    else
+        log_msg "Failed to send notification"
+    fi
+else
+    log_msg "No updates available"
+fi
+
+log_msg "Proxmox update check completed" 

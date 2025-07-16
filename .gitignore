@@ -17,6 +17,6 @@ temp/
 
 docs/
 
-ansible-docs/migration-plan.md
+ansible-docs/
 
 .cursor/

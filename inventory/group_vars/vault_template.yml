@@ -1,0 +1,115 @@
+# =============================================================================
+# HOMELAB ANSIBLE VAULT TEMPLATE - SENSITIVE CONFIGURATION
+# =============================================================================
+# 
+# 🔒 THIS FILE CONTAINS SENSITIVE DATA PLACEHOLDERS
+# 
+# INSTRUCTIONS:
+# 1. Copy this file to vault.yml: cp vault_template.yml vault.yml
+# 2. Replace all "REPLACE_WITH_YOUR_XXX" placeholders with real values
+# 3. Encrypt the file: ansible-vault encrypt vault.yml
+# 4. Never commit vault.yml to git (only commit this template)
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CLOUDFLARE API CONFIGURATION
+# -----------------------------------------------------------------------------
+# Used by Traefik for Let's Encrypt DNS challenges
+
+vault_cloudflare_api_token: "REPLACE_WITH_YOUR_CLOUDFLARE_API_TOKEN"
+vault_cloudflare_account_id: "REPLACE_WITH_YOUR_CLOUDFLARE_ACCOUNT_ID"
+vault_cloudflare_zone_id: "REPLACE_WITH_YOUR_CLOUDFLARE_ZONE_ID"
+
+# How to get these values:
+# 1. Go to Cloudflare Dashboard → My Profile → API Tokens
+# 2. Create Custom Token with Zone:Zone:Read and Zone:DNS:Edit permissions
+# 3. Account ID and Zone ID are found in the right sidebar of your domain overview
+
+# -----------------------------------------------------------------------------
+# SSH KEY CONFIGURATION
+# -----------------------------------------------------------------------------
+# SSH public keys for accessing servers
+
+ssh_public_keys:
+  - "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY_1"
+  # Add more SSH keys if needed:
+  # - "REPLACE_WITH_YOUR_SSH_PUBLIC_KEY_2"
+
+# How to get your SSH public key:
+# Run: cat ~/.ssh/id_rsa.pub (or ~/.ssh/id_ed25519.pub)
+# Copy the entire output starting with ssh-rsa or ssh-ed25519
+
+# -----------------------------------------------------------------------------
+# NTFY CONFIGURATION
+# -----------------------------------------------------------------------------
+# Authentication token for NTFY notification service
+
+vault_ntfy_token: "PLACEHOLDER_TOKEN"
+
+# NTFY user passwords for authentication setup
+vault_ntfy_admin_password: "REPLACE_WITH_YOUR_NTFY_ADMIN_PASSWORD"
+vault_ntfy_monitor_password: "REPLACE_WITH_YOUR_NTFY_MONITOR_PASSWORD"
+
+# How to get NTFY token:
+# 1. Run the NTFY deployment playbook first (it will generate a token automatically)
+# 2. Copy the displayed token and add it here
+# 3. Re-run the playbook to deploy scripts with the vault token
+# Manual generation: docker exec ntfy ntfy token add homelab-monitor
+
+# -----------------------------------------------------------------------------
+# PROXMOX API CONFIGURATION (GUI Setup Only)
+# -----------------------------------------------------------------------------
+# Stored securely in vault but configured via Proxmox GUI
+
+vault_proxmox_api_token: "REPLACE_WITH_YOUR_PROXMOX_API_TOKEN"
+
+# How to get Proxmox API token:
+# 1. Proxmox web interface → Datacenter → Permissions → API Tokens
+# 2. Add token for user (e.g., homarr-api@pve)
+# 3. Copy the token ID and secret
+# Format: "PVEAPIToken=user@pam!tokenid=secret"
+
+# -----------------------------------------------------------------------------
+# EMAIL CONFIGURATION
+# -----------------------------------------------------------------------------
+# Your email for Let's Encrypt certificates
+
+vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
+
+# =============================================================================
+# EXAMPLE COMPLETED VAULT FILE
+# =============================================================================
+#
+# Here's what your completed vault.yml should look like (with real values):
+#
+# vault_cloudflare_api_token: "abc123def456..."
+# vault_cloudflare_account_id: "1a2b3c4d5e6f..."
+# vault_cloudflare_zone_id: "zone123abc..."
+# ssh_public_keys:
+#   - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@laptop"
+# vault_ntfy_token: "tk_abc123def456..."
+# vault_ntfy_admin_password: "your-secure-admin-password"
+# vault_ntfy_monitor_password: "your-secure-monitor-password"
+# vault_proxmox_api_token: "abc2e3df-1234-5678-90ab-cdef12345678"
+# vault_letsencrypt_email: "your-email@example.com"
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# SECURITY REMINDERS
+# -----------------------------------------------------------------------------
+#
+# ✅ DO:
+# - Keep vault.yml encrypted at all times
+# - Use strong, unique passwords
+# - Rotate API tokens regularly
+# - Backup your vault password securely
+#
+# ❌ DON'T:
+# - Commit unencrypted vault.yml to git
+# - Share vault passwords via insecure channels
+# - Use weak or reused passwords
+# - Store vault password in the same location as vault.yml
+#
+# ============================================================================= 

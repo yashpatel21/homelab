@@ -1,0 +1,59 @@
+#!/bin/bash
+
+LOG_FILE="{{ data_directory }}/scripts/update-check.log"
+NTFY_URL="https://ntfy.{{ base_domain }}"
+TOPIC="system-updates"
+NTFY_TOKEN="{{ vault_ntfy_token | default('PLACEHOLDER_TOKEN') }}"
+
+# Function to log messages
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE"
+}
+
+log_msg "Starting update check"
+
+# Update package lists
+sudo apt update > /dev/null 2>&1
+
+# Check for available updates
+UPDATES=$(apt list --upgradable 2>/dev/null | grep -v "WARNING" | wc -l)
+SECURITY_UPDATES=$(apt list --upgradable 2>/dev/null | grep -i security | wc -l)
+
+log_msg "Found $((UPDATES-1)) updates ($SECURITY_UPDATES security)"
+
+if [ $UPDATES -gt 1 ]; then
+    # Get list of packages (first 10)
+    PACKAGE_LIST=$(apt list --upgradable 2>/dev/null | grep -v "WARNING" | head -11 | tail -10 | cut -d'/' -f1 | tr '\n' ', ' | sed 's/,$//')
+    
+    if [ $((UPDATES-1)) -gt 10 ]; then
+        PACKAGE_LIST="$PACKAGE_LIST and $((UPDATES-11)) more..."
+    fi
+    
+    # Create properly formatted message with actual line breaks
+    MESSAGE="🔄 Ubuntu Updates Available
+
+Total packages: $((UPDATES-1))
+Security updates: $SECURITY_UPDATES
+
+Packages: $PACKAGE_LIST
+
+Run 'sudo apt upgrade' to update.
+
+Check time: $(date '+%Y-%m-%d %H:%M')"
+    
+    # Send notification with authentication
+    if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
+         -H "Title: Ubuntu Updates Available" \
+         -H "Priority: default" \
+         -H "Tags: package,ubuntu" \
+         -d "$MESSAGE" \
+         "$NTFY_URL/$TOPIC" 2>>"$LOG_FILE"; then
+        log_msg "Notification sent successfully"
+    else
+        log_msg "Failed to send notification"
+    fi
+else
+    log_msg "No updates available"
+fi
+
+log_msg "Update check completed" 

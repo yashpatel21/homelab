@@ -1,0 +1,141 @@
+#!/bin/sh
+# =============================================================================
+# OPNsense AdGuard Home DNS Failover Script
+# =============================================================================
+# 
+# This script provides automatic DNS failover from AdGuard Home to Cloudflare
+# DNS over TLS when AdGuard Home becomes unavailable, ensuring uninterrupted
+# internet access while preserving ad blocking when AdGuard Home is healthy.
+#
+# Generated from Ansible template: opnsense-agh-failover.sh.j2
+# 
+# Features:
+# - Health checks AdGuard Home DNS service
+# - Automatic failover to Cloudflare DNS over TLS
+# - NTFY notifications for failover events
+# - Preserves ad blocking when AdGuard Home is healthy
+# - Idempotent configuration updates
+# - Proper certificate handling for DNS over TLS
+#
+# Schedule: Every minute via cron
+# =============================================================================
+
+# Configuration
+PRIMARY_AGH="{{ ubuntu_server_ip }}"
+CONFIG_FILE="/usr/local/etc/unbound.opnsense.d/agh_failover.conf"
+LOCK_FILE="/tmp/agh_failover.lock"
+STATUS_FILE="/tmp/agh_current_status"
+
+# NTFY Configuration
+NTFY_URL="https://ntfy.{{ base_domain }}"
+TOPIC="opnsense-alerts"
+NTFY_TOKEN="{{ vault_ntfy_token | default('PLACEHOLDER_TOKEN') }}"
+
+# Prevent script overlap
+if [ -f "$LOCK_FILE" ]; then
+    exit 0
+fi
+touch "$LOCK_FILE"
+
+# Function to clean up lock file on exit
+cleanup() {
+    rm -f "$LOCK_FILE"
+}
+
+# Set trap to ensure cleanup happens even if script fails
+trap cleanup EXIT
+
+# Function to send NTFY notification
+send_notification() {
+    TITLE="$1"
+    MESSAGE="$2"
+    PRIORITY="$3"
+    TAGS="$4"
+
+    curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
+         -H "Title: $TITLE" \
+         -H "Priority: $PRIORITY" \
+         -H "Tags: $TAGS" \
+         -d "$MESSAGE" \
+         "$NTFY_URL/$TOPIC" >/dev/null 2>&1
+}
+
+# Health check using multiple known-good domains
+health_check() {
+    for domain in "google.com" "cloudflare.com" "github.com"; do
+        if nslookup "$domain" "$PRIMARY_AGH" >/dev/null 2>&1; then
+            return 0  # AdGuard Home is healthy
+        fi
+    done
+    return 1  # AdGuard Home appears to be down
+}
+
+if health_check; then
+    # Primary AdGuard Home is healthy - configure ONLY AdGuard Home as forwarder
+    cat > "$CONFIG_FILE" << 'EOF'
+# AdGuard Home is healthy - exclusive forwarding to preserve ad blocking
+forward-zone:
+    name: "."
+    forward-addr: {{ ubuntu_server_ip }}@53
+EOF
+
+    # Log and reload only on state changes
+    if [ ! -f "$STATUS_FILE" ] || [ "$(cat "$STATUS_FILE")" != "primary" ]; then
+        logger "AGH Failover: Primary AdGuard Home healthy, exclusive forwarding enabled"
+        echo "primary" > "$STATUS_FILE"
+        /usr/local/sbin/configctl unbound restart >/dev/null 2>&1
+
+        # Send recovery notification
+        RECOVERY_MESSAGE="✅ AdGuard Home DNS Recovery
+
+AdGuard Home ({{ ubuntu_server_ip }}) is back online and healthy.
+
+DNS forwarding restored to AdGuard Home for ad blocking.
+
+Status: Primary DNS active
+Time: $(date '+%Y-%m-%d %H:%M:%S')"
+
+        send_notification "✅ AdGuard Home DNS Recovered" "$RECOVERY_MESSAGE" "default" "opnsense,dns,recovery"
+        logger "AGH Failover: Recovery notification sent to NTFY"
+    fi
+else
+    # Primary AdGuard Home failed - use Cloudflare DoT with correct certificate path
+    cat > "$CONFIG_FILE" << 'EOF'
+# AdGuard Home failed - forwarding to Cloudflare DNS over TLS
+server:
+    # Use the certificate bundle for FreeBSD/OPNsense
+    tls-cert-bundle: "/usr/local/share/certs/ca-root-nss.crt"
+
+forward-zone:
+    name: "."
+    # Cloudflare DNS over TLS with proper hostname verification
+    forward-addr: 1.1.1.1@853#cloudflare-dns.com
+    forward-addr: 1.0.0.1@853#cloudflare-dns.com
+    # Force TLS for this forward zone
+    forward-tls-upstream: yes
+EOF
+
+    if [ ! -f "$STATUS_FILE" ] || [ "$(cat "$STATUS_FILE")" != "backup" ]; then
+        logger "AGH Failover: AdGuard Home failed, switching to Cloudflare DoT"
+        echo "backup" > "$STATUS_FILE"
+        /usr/local/sbin/configctl unbound restart >/dev/null 2>&1
+
+        # Send failover notification
+        FAILOVER_MESSAGE="⚠️ AdGuard Home DNS Failover
+
+AdGuard Home ({{ ubuntu_server_ip }}) is not responding to DNS queries.
+
+Automatically switched to Cloudflare DNS over TLS (1.1.1.1) as backup.
+
+⚠️ Ad blocking is temporarily disabled
+✅ DNS resolution continues working
+
+Status: Backup DNS active
+Time: $(date '+%Y-%m-%d %H:%M:%S')
+
+System will automatically switch back when AdGuard Home recovers."
+
+        send_notification "⚠️ AdGuard Home DNS Failover" "$FAILOVER_MESSAGE" "high" "opnsense,dns,failover,warning"
+        logger "AGH Failover: Failover notification sent to NTFY"
+    fi
+fi 

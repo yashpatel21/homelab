@@ -1,7 +1,9 @@
 
 # Allow Cursor to access docs/
 !docs/
-!ansible-docs/migration-plan.md
+!ansible-docs/
+
+group_vars/all/vault.yml
 
 .vault_pass
 *.pem

@@ -1,0 +1,125 @@
+---
+# Non-sensitive configuration that's safe to store in Git
+
+# =============================================================================
+# HOMELAB ANSIBLE VARIABLES - PUBLIC CONFIGURATION
+# =============================================================================
+# 
+# This file contains NON-SENSITIVE configuration variables used across all
+# playbooks. Sensitive data (passwords, tokens, keys) goes in vault.yml
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# NETWORK CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Primary domain for services
+base_domain: "radiowaves.app"
+internal_domain: "localdomain"
+
+# Network settings
+homelab_network_name: "homelab"
+docker_network_subnet: "172.20.0.0/16"
+
+# Host IP addresses (these are local IPs, safe to be public)
+ubuntu_server_ip: "192.168.1.20"
+opnsense_ip: "192.168.1.1"
+proxmox_ip: "192.168.1.10"
+
+# -----------------------------------------------------------------------------
+# STORAGE CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Directory paths for services
+data_directory: "/data"
+storage_directory: "/storage"
+
+# Storage devices
+storage_device: "/dev/sdb"  # 2TB drive for Ubuntu VM
+proxmox_storage_device: "/dev/sda"  # 2TB drive for Proxmox host
+
+# -----------------------------------------------------------------------------
+# SYSTEM CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Primary user configuration
+ubuntu_primary_user: "yash"
+proxmox_primary_user: "admin"
+opnsense_primary_user: "root"
+
+# System settings
+system_timezone: "America/New_York"
+system_locale: "en_US.UTF-8"
+
+# -----------------------------------------------------------------------------
+# DOCKER CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Docker settings
+docker_compose_version: "v2.38.1"
+
+# SSL certificate resolver name (used in Traefik)
+ssl_cert_resolver: "myresolver"
+
+# -----------------------------------------------------------------------------
+# SERVICE CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Services that will be deployed
+services:
+  traefik:
+    port: "8080"
+    domain: "traefik.{{ base_domain }}"
+  
+  adguard:
+    port: "3000"
+    domain: "adguard.{{ base_domain }}"
+    dns_port: "53"
+  
+  ntfy:
+    port: "80"
+    domain: "ntfy.{{ base_domain }}"
+  
+  uptime_kuma:
+    port: "3001"
+    domain: "uptime.{{ base_domain }}"
+  
+  homarr:
+    port: "7575"
+    domain: "{{ base_domain }}"  # Root domain
+  
+  watchtower:
+    schedule: "0 0 4 * * *"  # 4 AM daily
+
+# -----------------------------------------------------------------------------
+# MONITORING CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# System update check schedules (different for each host)
+update_check_schedules:
+  ubuntu_vm: "0 12 * * 0"      # Weekly on Sundays at 12pm
+  proxmox: "0 12 * * 0"        # Weekly on Sundays at 12pm
+  opnsense: "0 18 * * *"       # Daily at 6pm
+  
+# DNS failover monitoring schedule
+dns_failover_schedule: "* * * * *"  # Every minute for OPNsense AdGuard Home failover
+
+# =============================================================================
+# IMPORTANT NOTES
+# =============================================================================
+#
+# 🔒 SENSITIVE DATA LOCATION:
+# All sensitive data (passwords, API tokens, etc.) should be stored in:
+# group_vars/all/vault.yml (encrypted with ansible-vault)
+#
+# 📝 TO UPDATE SENSITIVE DATA:
+# 1. Copy group_vars/all/vault_template.yml to group_vars/all/vault.yml
+# 2. Edit vault.yml with your actual sensitive values
+# 3. Encrypt: ansible-vault encrypt group_vars/all/vault.yml
+#
+# ✅ SAFE TO COMMIT:
+# This file (vars.yml) contains no sensitive data and is safe to commit to git
+#
+# =============================================================================
+

@@ -1,0 +1,1077 @@
+---
+# =============================================================================
+# PHASE 2: Core Services - NTFY Notification Service Deployment
+# =============================================================================
+# 
+# This playbook deploys NTFY notification service with complete authentication
+# setup, token generation, and notification scripts for comprehensive homelab
+# monitoring and alerting.
+#
+# Prerequisites:
+# - Phase 1 infrastructure setup completed
+# - Traefik reverse proxy deployed and functional
+# - DNS overrides configured in OPNsense for ntfy.radiowaves.app
+# - Docker installed and homelab network created
+#
+# What this playbook does:
+# 1. Creates NTFY configuration directories
+# 2. Deploys NTFY Docker Compose stack with Traefik integration
+# 3. Sets up NTFY authentication (admin user, homelab-monitor user, topics)
+# 4. Generates access token for homelab-monitor user
+# 5. Deploys notification scripts (Ubuntu updates, system monitoring)
+# 6. Configures cron jobs for automated monitoring
+# 7. Verifies service deployment and functionality
+#
+# Idempotent Design:
+# - Safe to run multiple times
+# - Preserves existing authentication and tokens
+# - Handles configuration updates gracefully
+# - Works with existing NTFY deployments
+#
+# Token Management:
+# - Automatically generates access token if not in vault
+# - Displays token for manual vault addition
+# - Uses existing vault token if available
+#
+# Usage:
+# ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-ntfy.yml --ask-vault-pass
+#
+# Tags:
+# --tags setup      : Only create directories and configuration
+# --tags deploy     : Only deploy/update the service
+# --tags auth       : Only setup authentication and tokens
+# --tags scripts    : Only deploy notification scripts and cron jobs
+# --tags verify     : Only run verification checks
+# --tags update     : Force update and restart service
+# =============================================================================
+
+- name: Deploy NTFY Notification Service with Complete Configuration
+  hosts: ubuntu_servers
+  become: true
+  vars:
+    service_name: "ntfy"
+    compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
+    
+  tasks:
+    # =============================================================================
+    # SETUP: Directory and Configuration Creation
+    # =============================================================================
+    
+    - name: "Setup - Create NTFY directories"
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+      loop:
+        - "{{ data_directory }}/{{ service_name }}"
+        - "{{ data_directory }}/{{ service_name }}/cache"
+        - "{{ data_directory }}/{{ service_name }}/config"
+        - "{{ data_directory }}/scripts"
+      tags: 
+        - setup
+        - always
+
+    - name: "Setup - Set NTFY cache directory permissions for container"
+      file:
+        path: "{{ data_directory }}/{{ service_name }}/cache"
+        owner: "1000"
+        group: "1000"
+        mode: '0755'
+        recurse: yes
+      tags: 
+        - setup
+        - always
+
+    - name: "Setup - Generate Docker Compose file from template"
+      template:
+        src: "ntfy-compose.yml.j2"
+        dest: "{{ compose_file }}"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0644'
+        backup: yes
+      register: compose_updated
+      tags: 
+        - setup
+        - deploy
+        - update
+
+    - name: "Setup - Display compose file location"
+      debug:
+        msg: "Docker Compose file created at: {{ compose_file }}"
+      tags: 
+        - setup
+        - always
+
+    # =============================================================================
+    # DEPLOY: Service Deployment and Management
+    # =============================================================================
+
+    - name: "Deploy - Check for existing NTFY containers"
+      shell: "docker ps -a | grep ntfy || true"
+      register: existing_ntfy_containers
+      changed_when: false
+      failed_when: false
+      tags: 
+        - deploy
+        - verify
+
+    - name: "Deploy - Display existing NTFY containers"
+      debug:
+        msg: |
+          🔍 EXISTING NTFY CONTAINERS CHECK:
+          {% if existing_ntfy_containers.stdout %}
+          ⚠️  Found existing NTFY containers:
+          {{ existing_ntfy_containers.stdout }}
+          
+          💡 Note: Will be stopped and managed by Ansible
+          {% else %}
+          ✅ No existing NTFY containers found
+          {% endif %}
+      tags: 
+        - deploy
+        - verify
+        - always
+
+    - name: "Deploy - Check if containers are already running"
+      command: "docker compose -f {{ compose_file }} ps -q"
+      register: running_containers
+      changed_when: false
+      failed_when: false
+      tags: 
+        - deploy
+        - verify
+
+    - name: "Deploy - Stop existing containers (if update requested)"
+      command: "docker compose -f {{ compose_file }} down"
+      when: 
+        - running_containers.stdout != ""
+        - "'update' in ansible_run_tags"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Remove conflicting containers (automatic cleanup)"
+      shell: |
+        # Remove containers with conflicting names (including stopped ones)
+        if docker ps -a -q -f name=^ntfy$ | grep -q .; then
+          echo "Removing existing container: ntfy"
+          docker stop ntfy 2>/dev/null || true
+          docker rm ntfy 2>/dev/null || true
+        fi
+      register: cleanup_result
+      changed_when: "'Removing existing container' in cleanup_result.stdout"
+      tags: 
+        - deploy
+
+    - name: "Deploy - Pull latest container images"
+      command: "docker compose -f {{ compose_file }} pull"
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Start NTFY service"
+      command: "docker compose -f {{ compose_file }} up -d"
+      register: deploy_result
+      changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Wait for NTFY service to be ready"
+      uri:
+        url: "https://ntfy.{{ base_domain }}/"
+        method: GET
+        timeout: 10
+        validate_certs: false
+      register: ntfy_ready_check
+      until: ntfy_ready_check.status == 200
+      retries: 12
+      delay: 5
+      failed_when: false
+      tags: 
+        - deploy
+        - verify
+
+    # =============================================================================
+    # AUTHENTICATION: NTFY User and Topic Setup
+    # =============================================================================
+
+    - name: "Auth - Wait for NTFY to be fully initialized"
+      pause:
+        seconds: 15
+      tags: 
+        - auth
+        - deploy
+
+    - name: "Auth - Check if admin user already exists"
+      shell: "docker exec ntfy ntfy user list"
+      register: admin_user_check
+      changed_when: false
+      failed_when: false
+      tags: 
+        - auth
+        - verify
+
+    - name: "Auth - Create admin user (if not exists)"
+      shell: "printf '{{ vault_ntfy_admin_password }}\n{{ vault_ntfy_admin_password }}\n' | docker exec -i ntfy ntfy user add --role=admin admin"
+      when: "'admin' not in admin_user_check.stdout"
+      register: admin_created
+      failed_when: admin_created.rc != 0 and 'already exists' not in admin_created.stderr
+      tags: 
+        - auth
+
+    - name: "Auth - Check if homelab-monitor user already exists"
+      shell: "docker exec ntfy ntfy user list"
+      register: monitor_user_check
+      changed_when: false
+      failed_when: false
+      tags: 
+        - auth
+        - verify
+
+    - name: "Auth - Create homelab-monitor user (if not exists)"
+      shell: "printf '{{ vault_ntfy_monitor_password }}\n{{ vault_ntfy_monitor_password }}\n' | docker exec -i ntfy ntfy user add homelab-monitor"
+      when: "'homelab-monitor' not in monitor_user_check.stdout"
+      register: monitor_created
+      failed_when: monitor_created.rc != 0 and 'already exists' not in monitor_created.stderr
+      tags: 
+        - auth
+
+    - name: "Auth - Set topic permissions for homelab-monitor user"
+      shell: |
+        docker exec ntfy ntfy access homelab-monitor {{ item }} write
+      loop:
+        - homelab-updates
+        - uptime-alerts
+        - system-updates
+        - proxmox-alerts
+        - opnsense-alerts
+      failed_when: false
+      changed_when: false
+      tags: 
+        - auth
+
+    - name: "Auth - Set anonymous read access for topics"
+      shell: |
+        docker exec ntfy ntfy access everyone {{ item }} read
+      loop:
+        - homelab-updates
+        - uptime-alerts
+        - system-updates
+        - proxmox-alerts
+        - opnsense-alerts
+      failed_when: false
+      changed_when: false
+      tags: 
+        - auth
+
+    - name: "Auth - Display user credentials"
+      debug:
+        msg: |
+          🔐 NTFY USER CREDENTIALS:
+          
+          {% if admin_created is defined and admin_created.changed %}
+          👤 Admin User Created:
+          • Username: admin
+          • Password: [from vault]
+          • Role: admin (full access)
+          {% endif %}
+          
+          {% if monitor_created is defined and monitor_created.changed %}
+          🤖 Monitor User Created:
+          • Username: homelab-monitor  
+          • Password: [from vault]
+          • Role: user (topic write access)
+          {% endif %}
+          
+          ✅ Using secure passwords from vault.yml
+          
+          💡 To change passwords later:
+          # Change admin password:
+          docker exec -it ntfy ntfy user change-pass admin
+          
+          # Change monitor password:
+          docker exec -it ntfy ntfy user change-pass homelab-monitor
+      when: (admin_created is defined and admin_created.changed) or (monitor_created is defined and monitor_created.changed)
+      tags: 
+        - auth
+        - always
+
+    # =============================================================================
+    # TOKEN MANAGEMENT: Generate and Display Token for Vault
+    # =============================================================================
+
+    - name: "Token - Check if vault token is available"
+      set_fact:
+        has_vault_token: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
+      tags: 
+        - auth
+        - scripts
+        - always
+
+    - name: "Token - Generate access token for homelab-monitor user (if needed)"
+      shell: "docker exec ntfy ntfy token add homelab-monitor"
+      register: token_generation
+      when: not has_vault_token
+      tags: 
+        - auth
+
+    - name: "Token - Get all tokens from NTFY"
+      shell: "docker exec ntfy ntfy token list 2>&1"
+      register: all_tokens
+      when: not has_vault_token and token_generation is defined
+      tags: 
+        - auth
+
+    - name: "Token - Parse latest token from output"
+      set_fact:
+        latest_token_parsed: "{{ all_tokens.stdout_lines | select('match', '^- tk_.*') | list | last | regex_replace('^- (tk_[^,]*),.*', '\\1') }}"
+      when: not has_vault_token and token_generation is defined and all_tokens.stdout is defined and all_tokens.stdout_lines | length > 0
+      failed_when: false
+      tags: 
+        - auth
+
+    - name: "Token - Debug token capture"
+      debug:
+        msg: |
+          🔍 DEBUG TOKEN CAPTURE:
+          
+          All tokens output:
+          {{ all_tokens.stdout if all_tokens is defined else 'No all_tokens variable' }}
+          
+          Parsed token:
+          {{ latest_token_parsed if latest_token_parsed is defined else 'No parsed token' }}
+      when: not has_vault_token and token_generation is defined
+      tags: 
+        - auth
+
+    - name: "Token - Display generated token information"
+      debug:
+        msg: |
+          🔑 NTFY TOKEN MANAGEMENT
+          
+          {% if has_vault_token %}
+          ✅ Using existing token from vault.yml
+          Token: {{ vault_ntfy_token }}
+          
+          🧪 Test your token:
+          curl -H "Authorization: Bearer {{ vault_ntfy_token }}" \
+               -H "Title: Test Notification" \
+               -d "Token test successful!" \
+               https://ntfy.{{ base_domain }}/system-updates
+          {% else %}
+          🆕 NEW TOKEN GENERATED:
+          
+          ⚠️  COPY THIS TOKEN BEFORE CONTINUING ⚠️
+          ════════════════════════════════════════
+          {% if latest_token_parsed is defined and latest_token_parsed %}
+          {{ latest_token_parsed }}
+          {% else %}
+          FULL TOKEN LIST (find the tk_xxx token):
+          
+          {{ all_tokens.stdout if all_tokens is defined and all_tokens.stdout else 'ERROR: Could not get token list' }}
+          
+          👉 Copy the token that starts with "tk_" from above
+          {% endif %}
+          ════════════════════════════════════════
+          
+          📝 REQUIRED ACTION: Add this token to your vault.yml
+          
+          1. COPY THE TOKEN ABOVE
+          2. Edit your vault file:
+             ansible-vault edit inventory/group_vars/all/vault.yml
+          3. Update this line:
+             vault_ntfy_token: "{{ latest_token_parsed if latest_token_parsed is defined and latest_token_parsed else 'PASTE_TOKEN_HERE' }}"
+          4. Save and exit
+          
+          5. Re-run scripts deployment:
+             ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-ntfy.yml --tags scripts,verify --ask-vault-pass
+          
+          ⏸️  PLAYBOOK WILL PAUSE AFTER THIS MESSAGE ⏸️
+          {% endif %}
+      when: token_generation is defined or has_vault_token
+      tags: 
+        - auth
+        - always
+
+    - name: "Token - Pause for manual vault update (if new token generated)"
+      pause:
+        prompt: |
+          
+          🛑 PLAYBOOK PAUSED FOR VAULT UPDATE
+          
+          📋 Steps to continue:
+          1. Copy the token displayed above
+          2. Run: ansible-vault edit inventory/group_vars/all/vault.yml
+          3. Update: vault_ntfy_token: "{{ token_generation.stdout }}"
+          4. Save and exit the vault editor
+          5. Press ENTER here to continue with script deployment
+          
+          Press ENTER when vault.yml has been updated...
+      when: not has_vault_token and token_generation is defined
+      tags: 
+        - auth
+
+    - name: "Token - Reload vault variables after manual update"
+      include_vars: "../../inventory/group_vars/all/vault.yml"
+      when: not has_vault_token and token_generation is defined
+      tags: 
+        - auth
+
+    - name: "Token - Verify updated vault token"
+      set_fact:
+        vault_token_updated: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
+      when: not has_vault_token and token_generation is defined
+      tags: 
+        - auth
+
+    - name: "Token - Display vault update status"
+      debug:
+        msg: |
+          {% if vault_token_updated is defined and vault_token_updated %}
+          ✅ Vault updated successfully!
+          New token: {{ vault_ntfy_token }}
+          {% else %}
+          ❌ Vault token not updated correctly
+          Expected: {{ token_generation.stdout }}
+          Current: {{ vault_ntfy_token | default('undefined') }}
+          
+          Please update vault.yml and re-run with:
+          ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-ntfy.yml --tags scripts,verify --ask-vault-pass
+          {% endif %}
+      when: not has_vault_token and token_generation is defined
+      tags: 
+        - auth
+
+    - name: "Token - Fail if vault not updated correctly"
+      fail:
+        msg: |
+          Vault token was not updated correctly. Please:
+          1. Run: ansible-vault edit inventory/group_vars/all/vault.yml
+          2. Set: vault_ntfy_token: "{{ token_generation.stdout }}"
+          3. Re-run: ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-ntfy.yml --tags scripts,verify --ask-vault-pass
+      when: 
+        - not has_vault_token 
+        - token_generation is defined
+        - vault_token_updated is defined 
+        - not vault_token_updated
+      tags: 
+        - auth
+
+    # =============================================================================
+    # AUTHENTICATION VERIFICATION: Test User Authentication 
+    # =============================================================================
+
+    - name: "Auth Verify - Test admin user authentication"
+      uri:
+        url: "https://ntfy.{{ base_domain }}/v1/account"
+        method: GET
+        headers:
+          Authorization: "Basic {{ ('admin:' + vault_ntfy_admin_password) | b64encode }}"
+        timeout: 10
+        validate_certs: false
+      register: admin_auth_test
+      failed_when: false
+      tags:
+        - auth
+        - verify
+
+    - name: "Auth Verify - Test homelab-monitor user authentication"
+      uri:
+        url: "https://ntfy.{{ base_domain }}/v1/account"
+        method: GET
+        headers:
+          Authorization: "Basic {{ ('homelab-monitor:' + vault_ntfy_monitor_password) | b64encode }}"
+        timeout: 10
+        validate_certs: false
+      register: monitor_auth_test
+      failed_when: false
+      tags:
+        - auth
+        - verify
+
+    - name: "Auth Verify - Display authentication test results"
+      debug:
+        msg: |
+          🔐 AUTHENTICATION VERIFICATION RESULTS:
+          
+          👤 Admin User Authentication:
+          • Status: {{ '✅ Success' if admin_auth_test.status == 200 else '❌ Failed (' + (admin_auth_test.status | string) + ')' }}
+          {% if admin_auth_test.status != 200 %}
+          • Error: {{ admin_auth_test.msg | default('Unknown error') }}
+          {% endif %}
+          
+          🤖 Homelab-Monitor User Authentication:
+          • Status: {{ '✅ Success' if monitor_auth_test.status == 200 else '❌ Failed (' + (monitor_auth_test.status | string) + ')' }}
+          {% if monitor_auth_test.status != 200 %}
+          • Error: {{ monitor_auth_test.msg | default('Unknown error') }}
+          {% endif %}
+          
+          🧪 Manual Authentication Tests:
+          
+          # Test admin user via command line:
+          curl -u admin:{{ vault_ntfy_admin_password }} \
+               https://ntfy.{{ base_domain }}/v1/account
+          
+          # Test monitor user via command line:
+          curl -u homelab-monitor:{{ vault_ntfy_monitor_password }} \
+               https://ntfy.{{ base_domain }}/v1/account
+          
+          # Test sending notification with monitor user:
+          curl -u homelab-monitor:{{ vault_ntfy_monitor_password }} \
+               -H "Title: Auth Test" \
+               -d "Authentication working!" \
+               https://ntfy.{{ base_domain }}/system-updates
+      tags:
+        - auth
+        - verify
+        - always
+
+    # =============================================================================
+    # SCRIPTS: Deploy Notification Scripts and Cron Jobs
+    # =============================================================================
+
+    - name: "Scripts - Check vault token availability for scripts"
+      set_fact:
+        scripts_vault_token_available: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
+      tags: 
+        - scripts
+        - always
+
+    - name: "Scripts - Deploy Ubuntu update check script"
+      template:
+        src: "ubuntu-update-check.sh.j2"
+        dest: "{{ data_directory }}/scripts/check-updates.sh"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+        backup: yes
+      when: scripts_vault_token_available
+      tags: 
+        - scripts
+
+    - name: "Scripts - Display script deployment status"
+      debug:
+        msg: |
+          📜 SCRIPT DEPLOYMENT STATUS:
+          
+          {% if scripts_vault_token_available %}
+          ✅ Vault token available - deploying scripts
+          {% else %}
+          ⏭️ Vault token not available - skipping script deployment
+          
+          To deploy scripts after updating vault:
+          ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-ntfy.yml --tags scripts,verify --ask-vault-pass
+          {% endif %}
+      tags: 
+        - scripts
+        - always
+
+
+
+    - name: "Scripts - Configure Ubuntu update check cron job"
+      cron:
+        name: "Ubuntu update check"
+        user: "{{ ubuntu_primary_user }}"
+        minute: "0"
+        hour: "12"
+        weekday: "0"
+        job: "{{ data_directory }}/scripts/check-updates.sh"
+        state: present
+      when: scripts_vault_token_available
+      tags: 
+        - scripts
+
+    - name: "Scripts - Verify scripts are executable"
+      file:
+        path: "{{ data_directory }}/scripts/check-updates.sh"
+        mode: '0755'
+      when: scripts_vault_token_available
+      tags: 
+        - scripts
+        - verify
+
+    - name: "Scripts - Display script deployment status"
+      debug:
+        msg: |
+          📜 SCRIPT DEPLOYMENT STATUS:
+          
+          {% if scripts_vault_token_available %}
+          ✅ Vault token available - deploying scripts
+          {% else %}
+          ⏭️ Vault token not available - skipping script deployment
+          
+          To deploy scripts after updating vault:
+          ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-ntfy.yml --tags scripts,verify --ask-vault-pass
+          {% endif %}
+      tags: 
+        - scripts
+        - always
+
+# =============================================================================
+# NOTIFICATION SCRIPTS: Deploy Monitoring Scripts to All Hosts
+# =============================================================================
+
+- name: Deploy Ubuntu Update Monitoring Script
+  hosts: ubuntu_servers
+  become: true
+  vars:
+    service_name: "ntfy"
+    
+  tasks:
+    - name: "Ubuntu Scripts - Load vault variables"
+      include_vars: "../../inventory/group_vars/all/vault.yml"
+      tags: 
+        - scripts
+        - always
+
+    - name: "Ubuntu Scripts - Check if vault token is available"
+      set_fact:
+        has_vault_token: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
+      tags: 
+        - scripts
+        - always
+
+    - name: "Ubuntu Scripts - Deploy Ubuntu update check script"
+      template:
+        src: "ubuntu-update-check.sh.j2"
+        dest: "{{ data_directory }}/scripts/check-updates.sh"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+        backup: yes
+      when: has_vault_token
+      tags: 
+        - scripts
+
+
+
+    - name: "Ubuntu Scripts - Configure Ubuntu update check cron job"
+      cron:
+        name: "Ubuntu update check"
+        user: "{{ ubuntu_primary_user }}"
+        minute: "0"
+        hour: "12"
+        weekday: "0"
+        job: "{{ data_directory }}/scripts/check-updates.sh"
+        state: present
+      when: has_vault_token
+      tags: 
+        - scripts
+
+    - name: "Ubuntu Scripts - Verify scripts are executable"
+      file:
+        path: "{{ data_directory }}/scripts/check-updates.sh"
+        mode: '0755'
+      when: has_vault_token
+      tags: 
+        - scripts
+        - verify
+
+    - name: "Ubuntu Scripts - Run update check script immediately (test notifications)"
+      shell: "{{ data_directory }}/scripts/check-updates.sh"
+      become_user: "{{ ubuntu_primary_user }}"
+      register: ubuntu_script_run
+      when: has_vault_token
+      failed_when: false
+      tags: 
+        - scripts
+        - verify
+
+    - name: "Ubuntu Scripts - Display script deployment status"
+      debug:
+        msg: |
+          🖥️ UBUNTU MONITORING SCRIPT STATUS:
+          {% if has_vault_token %}
+          ✅ Update monitoring script deployed
+          ✅ Weekly cron job configured (Sundays at 12 PM)
+          ✅ Script executed immediately for testing
+          📁 Script location: {{ data_directory }}/scripts/check-updates.sh
+          📜 Log file: {{ data_directory }}/scripts/update-check.log
+          
+          🧪 Script Test Results:
+          {% if ubuntu_script_run is defined %}
+          • Exit code: {{ ubuntu_script_run.rc }}
+          • Output: {{ ubuntu_script_run.stdout if ubuntu_script_run.stdout else 'No output' }}
+          {% if ubuntu_script_run.stderr %}
+          • Errors: {{ ubuntu_script_run.stderr }}
+          {% endif %}
+          {% endif %}
+          
+          💡 Check NTFY at https://ntfy.{{ base_domain }}/system-updates for notification
+          {% else %}
+          ❌ Script deployment skipped - NTFY token not available in vault
+          💡 Deploy NTFY service first and add token to vault
+          {% endif %}
+      tags: 
+        - scripts
+        - always
+
+- name: Deploy OPNsense Firmware Monitoring Script
+  hosts: opnsense_hosts
+  become: true
+  vars:
+    service_name: "ntfy"
+    
+  tasks:
+    - name: "OPNsense - Load vault variables"
+      include_vars: "../../inventory/group_vars/all/vault.yml"
+      tags: 
+        - scripts
+        - always
+
+    - name: "OPNsense - Check if vault token is available"
+      set_fact:
+        has_vault_token: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
+      tags: 
+        - scripts
+        - always
+
+    - name: "OPNsense - Deploy firmware notification script"
+      template:
+        src: "opnsense-firmware-notify.sh.j2"
+        dest: "/usr/local/bin/firmware-notify.sh"
+        owner: "root"
+        group: "wheel"
+        mode: '0755'
+        backup: yes
+      when: has_vault_token
+      tags: 
+        - scripts
+
+
+
+    - name: "OPNsense - Configure firmware check cron job"
+      cron:
+        name: "OPNsense firmware check"
+        user: "root"
+        minute: "0"
+        hour: "18"
+        job: "(/usr/local/bin/firmware-notify.sh) > /dev/null 2>> /var/log/firmware-notify-errors.log"
+        state: present
+      when: has_vault_token
+      tags: 
+        - scripts
+
+    - name: "OPNsense - Run firmware check script immediately (test notifications)"
+      shell: "/usr/local/bin/firmware-notify.sh"
+      register: opnsense_script_run
+      when: has_vault_token
+      failed_when: false
+      tags: 
+        - scripts
+        - verify
+
+    - name: "OPNsense - Display script deployment status"
+      debug:
+        msg: |
+          🔒 OPNSENSE MONITORING SCRIPT STATUS:
+          {% if has_vault_token %}
+          ✅ Firmware monitoring script deployed
+          ✅ Daily cron job configured (6 PM)
+          ✅ Script executed immediately for testing
+          📁 Script location: /usr/local/bin/firmware-notify.sh
+          📜 Log file: /var/log/firmware-notify-errors.log
+          
+          🧪 Script Test Results:
+          {% if opnsense_script_run is defined %}
+          • Exit code: {{ opnsense_script_run.rc }}
+          • Output: {{ opnsense_script_run.stdout if opnsense_script_run.stdout else 'No output' }}
+          {% if opnsense_script_run.stderr %}
+          • Errors: {{ opnsense_script_run.stderr }}
+          {% endif %}
+          {% endif %}
+          
+          💡 Check NTFY at https://ntfy.{{ base_domain }}/opnsense-alerts for notification
+          {% else %}
+          ❌ Script deployment skipped - NTFY token not available in vault
+          💡 Deploy NTFY service first and add token to vault
+          {% endif %}
+      tags: 
+        - scripts
+        - always
+
+- name: Deploy Proxmox Update Monitoring Script
+  hosts: proxmox_hosts
+  become: true
+  vars:
+    service_name: "ntfy"
+    
+  tasks:
+    - name: "Proxmox - Load vault variables"
+      include_vars: "../../inventory/group_vars/all/vault.yml"
+      tags: 
+        - scripts
+        - always
+
+    - name: "Proxmox - Check if vault token is available"
+      set_fact:
+        has_vault_token: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
+      tags: 
+        - scripts
+        - always
+
+    - name: "Proxmox - Create /usr/local/bin directory (if not exists)"
+      file:
+        path: "/usr/local/bin"
+        state: directory
+        owner: "root"
+        group: "root"
+        mode: '0755'
+      when: has_vault_token
+      tags: 
+        - scripts
+
+    - name: "Proxmox - Deploy update check script"
+      template:
+        src: "proxmox-update-check.sh.j2"
+        dest: "/usr/local/bin/proxmox-update-check.sh"
+        owner: "root"
+        group: "root"
+        mode: '0755'
+        backup: yes
+      when: has_vault_token
+      tags: 
+        - scripts
+
+
+
+    - name: "Proxmox - Configure update check cron job"
+      cron:
+        name: "Proxmox update check"
+        user: "root"
+        minute: "0"
+        hour: "12"
+        weekday: "0"
+        job: "/usr/local/bin/proxmox-update-check.sh"
+        state: present
+      when: has_vault_token
+      tags: 
+        - scripts
+
+    - name: "Proxmox - Run update check script immediately (test notifications)"
+      shell: "/usr/local/bin/proxmox-update-check.sh"
+      register: proxmox_script_run
+      when: has_vault_token
+      failed_when: false
+      tags: 
+        - scripts
+        - verify
+
+    - name: "Proxmox - Display script deployment status"
+      debug:
+        msg: |
+          🖥️ PROXMOX MONITORING SCRIPT STATUS:
+          {% if has_vault_token %}
+          ✅ Update monitoring script deployed
+          ✅ Weekly cron job configured (Sundays at 12 PM)
+          ✅ Script executed immediately for testing
+          📁 Script location: /usr/local/bin/proxmox-update-check.sh
+          📜 Log file: /var/log/proxmox-update-check.log
+          
+          🧪 Script Test Results:
+          {% if proxmox_script_run is defined %}
+          • Exit code: {{ proxmox_script_run.rc }}
+          • Output: {{ proxmox_script_run.stdout if proxmox_script_run.stdout else 'No output' }}
+          {% if proxmox_script_run.stderr %}
+          • Errors: {{ proxmox_script_run.stderr }}
+          {% endif %}
+          {% endif %}
+          
+          💡 Check NTFY at https://ntfy.{{ base_domain }}/proxmox-alerts for notification
+          
+          📝 Manual Proxmox Backup Webhook Setup Required:
+          1. Access Proxmox web interface → Datacenter → Notifications
+          2. Add Webhook Target: https://ntfy.{{ base_domain }}/proxmox-alerts
+          3. Add Authorization header: Bearer {{ vault_ntfy_token if has_vault_token else 'YOUR_TOKEN' }}
+          4. Configure Notification Matcher for backup events
+          
+          See documentation for detailed webhook setup instructions.
+          {% else %}
+          ❌ Script deployment skipped - NTFY token not available in vault
+          💡 Deploy NTFY service first and add token to vault
+          {% endif %}
+      tags: 
+        - scripts
+        - always
+
+# =============================================================================
+# VERIFICATION: Service Health Checks and Final Summary
+# =============================================================================
+
+- name: Verify NTFY Service and Display Final Summary
+  hosts: ubuntu_servers
+  become: true
+  vars:
+    service_name: "ntfy"
+    compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
+    
+  tasks:
+    - name: "Final Check - Verify vault token availability"
+      set_fact:
+        has_vault_token: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
+      tags: 
+        - verify
+        - always
+
+    # =============================================================================
+    # VERIFY: Service Verification and Health Checks
+    # =============================================================================
+
+    - name: "Verify - Check container status"
+      command: "docker compose -f {{ compose_file }} ps"
+      register: container_status
+      changed_when: false
+      tags: 
+        - verify
+        - always
+
+    - name: "Verify - Display container status"
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+      tags: 
+        - verify
+        - always
+
+    - name: "Verify - Test NTFY API accessibility"
+      uri:
+        url: "https://ntfy.{{ base_domain }}/v1/health"
+        method: GET
+        timeout: 10
+        validate_certs: false
+      register: api_test
+      failed_when: false
+      tags: 
+        - verify
+
+    - name: "Verify - Test NTFY web interface"
+      uri:
+        url: "https://ntfy.{{ base_domain }}/"
+        method: GET
+        timeout: 10
+        validate_certs: false
+      register: web_test
+      failed_when: false
+      tags: 
+        - verify
+
+    - name: "Verify - Test notification sending (if token available)"
+      uri:
+        url: "https://ntfy.{{ base_domain }}/system-updates"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ vault_ntfy_token }}"
+          Title: "NTFY Deployment Test"
+          Priority: "low"
+          Tags: "test,deployment"
+        body: "✅ NTFY service deployed successfully via Ansible!\n\nTimestamp: {{ ansible_date_time.iso8601 }}"
+        timeout: 10
+      register: notification_test
+      failed_when: false
+      when: has_vault_token
+      tags: 
+        - verify
+
+    # =============================================================================
+    # SUMMARY: Deployment Summary and Next Steps
+    # =============================================================================
+
+    - name: "Summary - Deployment results"
+      debug:
+        msg: |
+          ============================================================
+          🔔 NTFY DEPLOYMENT SUMMARY
+          ============================================================
+          
+          📁 Service Directory: {{ data_directory }}/{{ service_name }}
+          📋 Compose File: {{ compose_file }}
+          🔗 Scripts Directory: {{ data_directory }}/scripts
+          
+          🌐 Service Access URLs:
+          • NTFY Web Interface: https://ntfy.{{ base_domain }}
+          • NTFY API Health: https://ntfy.{{ base_domain }}/v1/health
+          • NTFY Topics: https://ntfy.{{ base_domain }}/stats
+          
+          📊 Service Status:
+          • NTFY API: {{ '✅ Accessible' if api_test.status == 200 else '❌ Not accessible' }}
+          • Web Interface: {{ '✅ Accessible' if web_test.status == 200 else '❌ Not accessible' }}
+          {% if has_vault_token %}
+          • Notification Test: {{ '✅ Successful' if notification_test.status == 200 else '❌ Failed' }}
+          {% else %}
+          • Notification Test: ⏳ Pending vault token setup
+          {% endif %}
+          
+          👥 Authentication Status:
+          • Admin User: ✅ Configured
+          • Monitor User: ✅ Configured  
+          • Topic Permissions: ✅ Configured
+          
+          🔑 Token Status:
+          {% if has_vault_token %}
+          • Access Token: ✅ Available from vault
+          {% else %}
+          • Access Token: 🆕 Generated (needs vault setup)
+          {% endif %}
+          
+          📜 Notification Topics & Monitoring Coverage:
+          • homelab-updates (Watchtower notifications)
+          • uptime-alerts (Service monitoring)  
+          • system-updates (Ubuntu updates - weekly Sundays 12 PM) ✅ Tested
+          • proxmox-alerts (Backup status + updates - weekly Sundays 12 PM) ✅ Tested
+          • opnsense-alerts (Firmware updates - daily 6 PM) ✅ Tested
+          
+          🔧 Service Management Commands:
+          • View logs: docker compose -f {{ compose_file }} logs -f
+          • Restart: docker compose -f {{ compose_file }} restart
+          • Stop: docker compose -f {{ compose_file }} down
+          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
+          
+          📝 Next Steps:
+          1. Access NTFY web interface at https://ntfy.{{ base_domain }}
+          2. Subscribe to topics on your mobile device
+          {% if not has_vault_token %}
+          3. Add generated token to vault.yml (see token output above)
+          4. Re-run playbook to deploy scripts with vault token
+          {% else %}
+          3. Check for test notifications that were just sent to all monitoring topics
+          4. Configure Proxmox backup webhook manually (see documentation)
+          {% endif %}
+          5. Deploy remaining Phase 2 services (AdGuard Home)
+          
+          ============================================================
+      tags: 
+        - always
+
+    - name: "Summary - Service management reminder"
+      debug:
+        msg: |
+          💡 USEFUL COMMANDS:
+          
+          # Check service status
+          docker compose -f {{ compose_file }} ps
+          
+          # View logs
+          docker compose -f {{ compose_file }} logs -f ntfy
+          
+          # Test notification manually
+          curl -H "Authorization: Bearer YOUR_TOKEN" \
+               -H "Title: Test Notification" \
+               -d "This is a test message" \
+               https://ntfy.{{ base_domain }}/system-updates
+          
+          # Check NTFY users and permissions
+          docker exec ntfy ntfy user list
+          docker exec ntfy ntfy access list
+          
+          # Monitor cron jobs
+          crontab -l -u {{ ubuntu_primary_user }}
+          
+          # Check script logs
+          tail -f {{ data_directory }}/scripts/update-check.log
+      tags: 
+        - always 

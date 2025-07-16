@@ -1,0 +1,33 @@
+services:
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: ntfy
+    command:
+      - serve
+    restart: unless-stopped
+    environment:
+      - TZ={{ system_timezone }}
+      - NTFY_BASE_URL=https://ntfy.{{ base_domain }}
+      - NTFY_CACHE_FILE=/var/cache/ntfy/cache.db
+      - NTFY_AUTH_FILE=/var/cache/ntfy/auth.db
+      - NTFY_AUTH_DEFAULT_ACCESS=deny-all
+      - NTFY_BEHIND_PROXY=true
+    volumes:
+      - {{ data_directory }}/ntfy/cache:/var/cache/ntfy
+      - {{ data_directory }}/ntfy/config:/etc/ntfy
+    networks:
+      - {{ homelab_network_name }}
+    labels:
+      # Traefik routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.ntfy.rule=Host(`ntfy.{{ base_domain }}`)"
+      - "traefik.http.routers.ntfy.entrypoints=websecure"
+      - "traefik.http.routers.ntfy.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.ntfy.loadbalancer.server.port=80"
+      
+      # Watchtower updates
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  {{ homelab_network_name }}:
+    external: true 

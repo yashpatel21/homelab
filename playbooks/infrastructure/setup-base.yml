@@ -1,0 +1,158 @@
+---
+# =============================================================================
+# PHASE 1: Infrastructure Foundation - Base System Setup
+# =============================================================================
+# 
+# This playbook handles the fundamental system configuration for both Proxmox
+# host and Ubuntu server after initial setup and SSH access is configured.
+#
+# Prerequisites:
+# - Complete infrastructure setup from prerequisites.md
+# - SSH access configured on all hosts
+# - Admin users created via web interfaces
+# - Ubuntu Server installed with SSH access
+#
+# What this playbook does:
+# 1. Updates Ubuntu system packages to latest versions
+# 2. Installs essential utilities for system management
+# 3. Sets up timezone, locale and automatic updates
+#
+# Manual steps required BEFORE running this playbook:
+# - Complete ALL tasks in prerequisites.md
+#
+# HOW TO RUN THIS PLAYBOOK:
+# ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-base.yml --ask-vault-pass
+#
+# =============================================================================
+
+# =============================================================================
+# UBUNTU SERVER CONFIGURATION
+# =============================================================================
+
+- name: "Phase 1.1 - Ubuntu Server Base System Setup"
+  hosts: ubuntu_servers
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # SYSTEM PACKAGE MANAGEMENT
+    # -------------------------------------------------------------------------
+    
+    - name: "Update apt package cache"
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      tags: [packages, update]
+
+    - name: "Upgrade all packages to latest version"
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      register: apt_upgrade
+      tags: [packages, update]
+
+    - name: "Install essential system utilities"
+      apt:
+        name:
+          - htop          # Interactive process viewer
+          - tree          # Directory tree display
+          - net-tools     # Network utilities (netstat, ifconfig)
+          - curl          # Data transfer tool
+          - wget          # File downloader
+          - git           # Version control system
+          - vim           # Text editor
+          - unzip         # Archive extraction
+          - software-properties-common  # APT repository management
+        state: present
+      tags: [packages, utilities]
+
+    # -------------------------------------------------------------------------
+    # USER MANAGEMENT
+    # -------------------------------------------------------------------------
+    # Note: Ubuntu user is created during OS installation (prerequisites.md section 3.3)
+    # and sudo configuration is handled in prerequisites.md section 5.3.
+    # SSH key authentication is set up via ssh-copy-id in prerequisites.md.
+    # No user management tasks needed in this playbook.
+
+
+
+    # -------------------------------------------------------------------------
+    # SYSTEM CONFIGURATION
+    # -------------------------------------------------------------------------
+
+    - name: "Set system timezone"
+      timezone:
+        name: "{{ system_timezone }}"
+      tags: [system, timezone]
+
+    - name: "Configure system locale"
+      locale_gen:
+        name: "{{ system_locale }}"
+        state: present
+      tags: [system, locale]
+
+    - name: "Set default locale"
+      lineinfile:
+        path: /etc/default/locale
+        regexp: "^LANG="
+        line: "LANG={{ system_locale }}"
+        create: yes
+      tags: [system, locale]
+
+    # -------------------------------------------------------------------------
+    # AUTOMATIC SECURITY UPDATES
+    # -------------------------------------------------------------------------
+
+    - name: "Install unattended-upgrades for automatic security updates"
+      apt:
+        name: unattended-upgrades
+        state: present
+      tags: [security, updates]
+
+    - name: "Configure automatic security updates"
+      lineinfile:
+        path: /etc/apt/apt.conf.d/20auto-upgrades
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        create: yes
+      loop:
+        - { regexp: "^APT::Periodic::Update-Package-Lists", line: "APT::Periodic::Update-Package-Lists \"1\";" }
+        - { regexp: "^APT::Periodic::Unattended-Upgrade", line: "APT::Periodic::Unattended-Upgrade \"1\";" }
+      tags: [security, updates]
+
+  # ---------------------------------------------------------------------------
+  # HANDLERS
+  # ---------------------------------------------------------------------------
+
+  handlers:
+    # No handlers needed for current tasks
+
+# =============================================================================
+# PLAYBOOK EXECUTION SUMMARY
+# =============================================================================
+#
+# This playbook completes the base system setup for your homelab infrastructure.
+# 
+# Execution Order:
+# 1. Ubuntu Server: Package updates, system configuration
+#
+# What was configured:
+# ✅ Ubuntu system packages updated and essential utilities installed
+# ✅ Ubuntu system timezone and locale configured
+# ✅ Ubuntu automatic security updates enabled
+#
+# Prerequisites (completed in prerequisites.md):
+# ✅ Infrastructure setup (Proxmox installation, Ubuntu VM creation)
+# ✅ Admin user creation via web interfaces
+# ✅ SSH access enabled on all hosts
+# ✅ SSH key authentication configured (ssh-copy-id)
+# ✅ Passwordless sudo configured for Ubuntu user
+#
+# Next steps:
+# 1. Verify SSH key authentication works to all hosts
+# 2. Test sudo access for configured users
+# 3. Proceed to setup-storage.yml playbook
+#
+# ============================================================================= 

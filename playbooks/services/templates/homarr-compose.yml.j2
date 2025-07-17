@@ -1,0 +1,23 @@
+services:
+  homarr:
+    container_name: homarr
+    image: ghcr.io/homarr-labs/homarr:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{ data_directory }}/homarr/appdata:/appdata
+    environment:
+      - SECRET_ENCRYPTION_KEY={{ vault_homarr_encryption_key }}
+    networks:
+      - {{ homelab_network_name }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homarr.rule=Host(`{{ base_domain }}`)"
+      - "traefik.http.routers.homarr.entrypoints=websecure"
+      - "traefik.http.routers.homarr.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.homarr.loadbalancer.server.port=7575"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  {{ homelab_network_name }}:
+    external: true 

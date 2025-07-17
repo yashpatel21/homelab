@@ -1,0 +1,292 @@
+---
+# =============================================================================
+# PHASE 3: Supporting Services - Homarr Dashboard Service Deployment
+# =============================================================================
+# 
+# This playbook deploys Homarr dashboard service for unified homelab
+# management interface with service tiles and system monitoring.
+#
+# Prerequisites:
+# - Phase 1 infrastructure setup completed
+# - Phase 2 core services deployed (Traefik, NTFY, AdGuard Home)
+# - DNS overrides configured in OPNsense for radiowaves.app (root domain)
+# - Docker installed and homelab network created
+# - Proxmox API token generated and stored in vault
+# - Homarr encryption key generated and stored in vault
+#
+# What this playbook does:
+# 1. Creates Homarr configuration directories
+# 2. Deploys Homarr Docker Compose stack with Traefik integration
+# 3. Configures persistent data volumes with proper permissions
+# 4. Verifies service deployment and functionality
+#
+# Idempotent Design:
+# - Safe to run multiple times
+# - Preserves existing Homarr configuration and data
+# - Handles configuration updates gracefully
+# - Works with existing Homarr deployments
+#
+# Manual Configuration Required:
+# - Proxmox API token setup (BEFORE running playbook)
+# - Dashboard configuration via web interface
+# - Service tile setup and widget configuration
+#
+# Usage:
+# ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-homarr.yml --ask-vault-pass
+#
+# Tags:
+# --tags setup      : Only create directories and configuration
+# --tags deploy     : Only deploy/update the service
+# --tags verify     : Only run verification checks
+# --tags update     : Force update and restart service
+# =============================================================================
+
+- name: Deploy Homarr Dashboard Service
+  hosts: ubuntu_servers
+  become: true
+  vars:
+    service_name: "homarr"
+    compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
+    ssl_cert_resolver: "myresolver"
+    
+  tasks:
+    # =============================================================================
+    # SETUP: Directory and Configuration Creation
+    # =============================================================================
+    
+    - name: "Setup - Create Homarr directories"
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+      loop:
+        - "{{ data_directory }}/{{ service_name }}"
+        - "{{ data_directory }}/{{ service_name }}/appdata"
+      tags: 
+        - setup
+        - always
+
+    - name: "Setup - Generate Docker Compose file from template"
+      template:
+        src: "homarr-compose.yml.j2"
+        dest: "{{ compose_file }}"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0644'
+        backup: yes
+      register: compose_updated
+      tags: 
+        - setup
+        - deploy
+        - update
+
+    - name: "Setup - Display compose file location"
+      debug:
+        msg: "Docker Compose file created at: {{ compose_file }}"
+      tags: 
+        - setup
+        - always
+
+    # =============================================================================
+    # DEPLOY: Service Deployment and Management
+    # =============================================================================
+
+    - name: "Deploy - Check for existing Homarr containers"
+      shell: "docker ps -a | grep homarr || true"
+      register: existing_homarr_containers
+      changed_when: false
+      failed_when: false
+      tags: 
+        - deploy
+        - verify
+
+    - name: "Deploy - Display existing Homarr containers"
+      debug:
+        msg: |
+          🔍 EXISTING HOMARR CONTAINERS CHECK:
+          {% if existing_homarr_containers.stdout %}
+          ⚠️  Found existing Homarr containers:
+          {{ existing_homarr_containers.stdout }}
+          
+          💡 Note: Will be managed by Ansible if names match
+          {% else %}
+          ✅ No existing Homarr containers found
+          {% endif %}
+      tags: 
+        - deploy
+        - verify
+        - always
+
+    - name: "Deploy - Check if containers are already running"
+      command: "docker compose -f {{ compose_file }} ps -q"
+      register: running_containers
+      changed_when: false
+      failed_when: false
+      tags: 
+        - deploy
+        - verify
+
+    - name: "Deploy - Stop existing containers (if update requested)"
+      command: "docker compose -f {{ compose_file }} down"
+      when: 
+        - running_containers.stdout != ""
+        - "'update' in ansible_run_tags"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Remove conflicting containers (automatic cleanup)"
+      shell: |
+        # Remove containers with conflicting names (including stopped ones)
+        if docker ps -a -q -f name=^homarr$ | grep -q .; then
+          echo "Removing existing container: homarr"
+          docker stop homarr 2>/dev/null || true
+          docker rm homarr 2>/dev/null || true
+        fi
+      register: cleanup_result
+      changed_when: "'Removing existing container' in cleanup_result.stdout"
+      tags: 
+        - deploy
+
+    - name: "Deploy - Pull latest container images"
+      command: "docker compose -f {{ compose_file }} pull"
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Start Homarr service"
+      command: "docker compose -f {{ compose_file }} up -d"
+      register: deploy_result
+      changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Wait for Homarr service to be ready"
+      uri:
+        url: "https://{{ base_domain }}"
+        method: GET
+        timeout: 10
+        validate_certs: false
+        status_code: [200, 302]
+      register: homarr_wait_result
+      until: homarr_wait_result.status in [200, 302]
+      retries: 12
+      delay: 5
+      tags: 
+        - deploy
+        - verify
+
+    # =============================================================================
+    # VERIFY: Service Verification and Health Checks
+    # =============================================================================
+
+    - name: "Verify - Check container status"
+      command: "docker compose -f {{ compose_file }} ps"
+      register: container_status
+      changed_when: false
+      tags: 
+        - verify
+        - always
+
+    - name: "Verify - Display container status"
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+      tags: 
+        - verify
+        - always
+
+    - name: "Verify - Test Homarr via Traefik"
+      uri:
+        url: "https://{{ base_domain }}"
+        method: GET
+        timeout: 10
+        validate_certs: false
+      register: traefik_access_test
+      failed_when: false
+      tags: 
+        - verify
+
+    - name: "Verify - Display access test results"
+      debug:
+        msg: |
+          📡 HOMARR ACCESS TEST RESULTS:
+          
+          • Traefik Access (HTTPS): {{ '✅ Success' if traefik_access_test.status == 200 else '❌ Failed (' + (traefik_access_test.status | string) + ')' }}
+          
+          💡 Note: Homarr is only accessible via Traefik (no direct port access)
+          💡 SSL certificates may take 1-2 minutes to generate on first access
+      tags: 
+        - verify
+        - always
+
+    # =============================================================================
+    # SUMMARY: Deployment Summary and Next Steps
+    # =============================================================================
+
+    - name: "Summary - Final deployment summary"
+      debug:
+        msg: |
+          ============================================================
+          📊 HOMARR DEPLOYMENT SUMMARY
+          ============================================================
+          
+          📁 Service Directory: {{ data_directory }}/{{ service_name }}
+          📋 Compose File: {{ compose_file }}
+          🔧 SSL Certificate Resolver: {{ ssl_cert_resolver }}
+          
+          🌐 Service Access URLs:
+          • Homarr Dashboard (HTTPS): https://{{ base_domain }}
+          
+          📊 Service Status:
+          • Traefik Access: {{ '✅ Accessible' if traefik_access_test.status == 200 else '❌ Not accessible' }}
+          • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
+          
+          🔧 Service Management Commands:
+          • View logs: docker compose -f {{ compose_file }} logs -f
+          • Restart: docker compose -f {{ compose_file }} restart
+          • Stop: docker compose -f {{ compose_file }} down
+          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
+          
+          📝 Manual Configuration Required:
+          1. **Proxmox API Integration**: Verify API token is working in dashboard
+          2. **Service Tiles**: Add tiles for all homelab services
+          3. **Dashboard Layout**: Configure widgets and customize appearance
+          4. **System Monitoring**: Set up hardware monitoring widgets
+          
+          🚀 Next Steps:
+          1. Access Homarr dashboard at https://{{ base_domain }}
+          2. Configure service tiles for all deployed services
+          3. Set up Proxmox integration widgets
+          4. Customize dashboard layout and appearance
+          5. Deploy other Phase 3 services as needed (Uptime Kuma, Watchtower)
+          
+          ============================================================
+      tags: 
+        - always
+
+    - name: "Summary - Service management reminder"
+      debug:
+        msg: |
+          💡 USEFUL COMMANDS:
+          
+          # Check service status
+          docker compose -f {{ compose_file }} ps
+          
+          # View logs
+          docker compose -f {{ compose_file }} logs -f homarr
+          
+          # Restart service
+          docker compose -f {{ compose_file }} restart
+          
+          # Access service
+          https://{{ base_domain }}
+          
+          # Check container resource usage
+          docker stats homarr
+      tags: 
+        - always 

@@ -1,0 +1,21 @@
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - {{ data_directory }}/uptime-kuma/data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - {{ homelab_network_name }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime-kuma.rule=Host(`uptime.{{ base_domain }}`)"
+      - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
+      - "traefik.http.routers.uptime-kuma.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  {{ homelab_network_name }}:
+    external: true 

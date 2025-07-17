@@ -57,17 +57,25 @@ vault_ntfy_monitor_password: "REPLACE_WITH_YOUR_NTFY_MONITOR_PASSWORD"
 # Manual generation: docker exec ntfy ntfy token add homelab-monitor
 
 # -----------------------------------------------------------------------------
-# PROXMOX API CONFIGURATION (GUI Setup Only)
+# PROXMOX API CONFIGURATION
 # -----------------------------------------------------------------------------
-# Stored securely in vault but configured via Proxmox GUI
+# For Homarr dashboard integration with Proxmox hardware monitoring
 
 vault_proxmox_api_token: "REPLACE_WITH_YOUR_PROXMOX_API_TOKEN"
 
-# How to get Proxmox API token:
-# 1. Proxmox web interface → Datacenter → Permissions → API Tokens
-# 2. Add token for user (e.g., homarr-api@pve)
-# 3. Copy the token ID and secret
-# Format: "PVEAPIToken=user@pam!tokenid=secret"
+# How to get Proxmox API token for Homarr:
+# 1. Follow: https://homarr.dev/docs/integrations/hardware/
+
+# -----------------------------------------------------------------------------
+# HOMARR CONFIGURATION
+# -----------------------------------------------------------------------------
+# Encryption key for Homarr dashboard secure data storage
+
+vault_homarr_encryption_key: "REPLACE_WITH_YOUR_HOMARR_ENCRYPTION_KEY"
+
+# How to generate Homarr encryption key:
+# Run: openssl rand -hex 32
+# Copy the entire 64-character hex string output
 
 # -----------------------------------------------------------------------------
 # EMAIL CONFIGURATION
@@ -90,7 +98,8 @@ vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 # vault_ntfy_token: "tk_abc123def456..."
 # vault_ntfy_admin_password: "your-secure-admin-password"
 # vault_ntfy_monitor_password: "your-secure-monitor-password"
-# vault_proxmox_api_token: "abc2e3df-1234-5678-90ab-cdef12345678"
+# vault_proxmox_api_token: "PVEAPIToken=homarr-api@pve!homarr=abc123def456..."
+# vault_homarr_encryption_key: "abc123def456789abcdef123456789abcdef123456789abcdef123456789abc"
 # vault_letsencrypt_email: "your-email@example.com"
 #
 # =============================================================================

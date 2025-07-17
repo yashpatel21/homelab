@@ -1,0 +1,310 @@
+---
+# =============================================================================
+# PHASE 3: Supporting Services - Uptime Kuma Monitoring Service Deployment
+# =============================================================================
+# 
+# This playbook deploys Uptime Kuma monitoring service for comprehensive
+# homelab service monitoring and alerting.
+#
+# Prerequisites:
+# - Phase 1 infrastructure setup completed
+# - Phase 2 core services deployed (Traefik, NTFY, AdGuard Home)
+# - DNS overrides configured in OPNsense for uptime.radiowaves.app
+# - Docker installed and homelab network created
+# - NTFY service operational for notification integration
+#
+# What this playbook does:
+# 1. Creates Uptime Kuma configuration directories
+# 2. Deploys Uptime Kuma Docker Compose stack with Traefik integration
+# 3. Configures persistent data volumes with proper permissions
+# 4. Verifies service deployment and functionality
+#
+# Idempotent Design:
+# - Safe to run multiple times
+# - Preserves existing Uptime Kuma configuration and data
+# - Handles configuration updates gracefully
+# - Works with existing Uptime Kuma deployments
+#
+# Manual Configuration Required:
+# - Initial setup via web interface
+# - Monitor creation for all services
+# - NTFY notification integration setup
+# - SSL certificate monitoring configuration
+#
+# Usage:
+# ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-uptime-kuma.yml --ask-vault-pass
+#
+# Tags:
+# --tags setup      : Only create directories and configuration
+# --tags deploy     : Only deploy/update the service
+# --tags verify     : Only run verification checks
+# --tags update     : Force update and restart service
+# =============================================================================
+
+- name: Deploy Uptime Kuma Monitoring Service
+  hosts: ubuntu_servers
+  become: true
+  vars:
+    service_name: "uptime-kuma"
+    compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
+    ssl_cert_resolver: "myresolver"
+    
+  tasks:
+    # =============================================================================
+    # SETUP: Directory and Configuration Creation
+    # =============================================================================
+    
+    - name: "Setup - Create Uptime Kuma directories"
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+      loop:
+        - "{{ data_directory }}/{{ service_name }}"
+        - "{{ data_directory }}/{{ service_name }}/data"
+      tags: 
+        - setup
+        - always
+
+    - name: "Setup - Set Uptime Kuma data directory permissions for container"
+      file:
+        path: "{{ data_directory }}/{{ service_name }}/data"
+        owner: "1000"
+        group: "1000"
+        mode: '0755'
+        recurse: yes
+      tags: 
+        - setup
+        - always
+
+    - name: "Setup - Generate Docker Compose file from template"
+      template:
+        src: "uptime-kuma-compose.yml.j2"
+        dest: "{{ compose_file }}"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0644'
+        backup: yes
+      register: compose_updated
+      tags: 
+        - setup
+        - deploy
+        - update
+
+    - name: "Setup - Display compose file location"
+      debug:
+        msg: "Docker Compose file created at: {{ compose_file }}"
+      tags: 
+        - setup
+        - always
+
+    # =============================================================================
+    # DEPLOY: Service Deployment and Management
+    # =============================================================================
+
+    - name: "Deploy - Check for existing Uptime Kuma containers"
+      shell: "docker ps -a | grep uptime-kuma || true"
+      register: existing_uptime_containers
+      changed_when: false
+      failed_when: false
+      tags: 
+        - deploy
+        - verify
+
+    - name: "Deploy - Display existing Uptime Kuma containers"
+      debug:
+        msg: |
+          🔍 EXISTING UPTIME KUMA CONTAINERS CHECK:
+          {% if existing_uptime_containers.stdout %}
+          ⚠️  Found existing Uptime Kuma containers:
+          {{ existing_uptime_containers.stdout }}
+          
+          💡 Note: Will be managed by Ansible if names match
+          {% else %}
+          ✅ No existing Uptime Kuma containers found
+          {% endif %}
+      tags: 
+        - deploy
+        - verify
+        - always
+
+    - name: "Deploy - Check if containers are already running"
+      command: "docker compose -f {{ compose_file }} ps -q"
+      register: running_containers
+      changed_when: false
+      failed_when: false
+      tags: 
+        - deploy
+        - verify
+
+    - name: "Deploy - Stop existing containers (if update requested)"
+      command: "docker compose -f {{ compose_file }} down"
+      when: 
+        - running_containers.stdout != ""
+        - "'update' in ansible_run_tags"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Remove conflicting containers (automatic cleanup)"
+      shell: |
+        # Remove containers with conflicting names (including stopped ones)
+        if docker ps -a -q -f name=^uptime-kuma$ | grep -q .; then
+          echo "Removing existing container: uptime-kuma"
+          docker stop uptime-kuma 2>/dev/null || true
+          docker rm uptime-kuma 2>/dev/null || true
+        fi
+      register: cleanup_result
+      changed_when: "'Removing existing container' in cleanup_result.stdout"
+      tags: 
+        - deploy
+
+    - name: "Deploy - Pull latest container images"
+      command: "docker compose -f {{ compose_file }} pull"
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Start Uptime Kuma service"
+      command: "docker compose -f {{ compose_file }} up -d"
+      register: deploy_result
+      changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
+      tags: 
+        - deploy
+        - update
+
+    - name: "Deploy - Wait for Uptime Kuma service to be ready"
+      uri:
+        url: "https://uptime.{{ base_domain }}"
+        method: GET
+        timeout: 10
+        validate_certs: false
+        status_code: [200, 302]
+      register: uptime_wait_result
+      until: uptime_wait_result.status in [200, 302]
+      retries: 12
+      delay: 5
+      tags: 
+        - deploy
+        - verify
+
+    # =============================================================================
+    # VERIFY: Service Verification and Health Checks
+    # =============================================================================
+
+    - name: "Verify - Check container status"
+      command: "docker compose -f {{ compose_file }} ps"
+      register: container_status
+      changed_when: false
+      tags: 
+        - verify
+        - always
+
+    - name: "Verify - Display container status"
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+      tags: 
+        - verify
+        - always
+
+    - name: "Verify - Test Uptime Kuma via Traefik"
+      uri:
+        url: "https://uptime.{{ base_domain }}"
+        method: GET
+        timeout: 10
+        validate_certs: false
+      register: traefik_access_test
+      failed_when: false
+      tags: 
+        - verify
+
+    - name: "Verify - Display access test results"
+      debug:
+        msg: |
+          📡 UPTIME KUMA ACCESS TEST RESULTS:
+          
+          • Traefik Access (HTTPS): {{ '✅ Success' if traefik_access_test.status == 200 else '❌ Failed (' + (traefik_access_test.status | string) + ')' }}
+          
+          💡 Note: Uptime Kuma is only accessible via Traefik (no direct port access)
+          💡 SSL certificates may take 1-2 minutes to generate on first access
+      tags: 
+        - verify
+        - always
+
+    # =============================================================================
+    # SUMMARY: Deployment Summary and Next Steps
+    # =============================================================================
+
+    - name: "Summary - Final deployment summary"
+      debug:
+        msg: |
+          ============================================================
+          📊 UPTIME KUMA DEPLOYMENT SUMMARY
+          ============================================================
+          
+          📁 Service Directory: {{ data_directory }}/{{ service_name }}
+          📋 Compose File: {{ compose_file }}
+          🔧 SSL Certificate Resolver: {{ ssl_cert_resolver }}
+          
+          🌐 Service Access URLs:
+          • Uptime Kuma (HTTPS): https://uptime.{{ base_domain }}
+          
+          📊 Service Status:
+          • Traefik Access: {{ '✅ Accessible' if traefik_access_test.status == 200 else '❌ Not accessible' }}
+          • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
+          
+          🔧 Service Management Commands:
+          • View logs: docker compose -f {{ compose_file }} logs -f
+          • Restart: docker compose -f {{ compose_file }} restart
+          • Stop: docker compose -f {{ compose_file }} down
+          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
+          
+          📝 Manual Configuration Required:
+          1. **Initial Setup**: Access https://uptime.{{ base_domain }} and complete setup wizard
+          2. **Monitor Creation**: Use template configuration for all services
+          3. **NTFY Integration**: Configure NTFY notifications for alerts
+          4. **SSL Certificate Monitoring**: Enable certificate expiry notifications
+          
+          🚀 Next Steps:
+          1. Access Uptime Kuma web interface at https://uptime.{{ base_domain }}
+          2. Complete initial setup wizard
+          3. Create monitors for all infrastructure services
+          4. Configure NTFY notification integration
+          5. Test monitoring alerts and notifications
+          6. Deploy other Phase 3 services as needed (Homarr, Watchtower)
+          
+          ============================================================
+      tags: 
+        - always
+
+    - name: "Summary - Service management reminder"
+      debug:
+        msg: |
+          💡 USEFUL COMMANDS:
+          
+          # Check service status
+          docker compose -f {{ compose_file }} ps
+          
+          # View logs
+          docker compose -f {{ compose_file }} logs -f uptime-kuma
+          
+          # Restart service
+          docker compose -f {{ compose_file }} restart
+          
+          # Access service
+          https://uptime.{{ base_domain }}
+          
+          # Test NTFY integration
+          curl -H "Authorization: Bearer YOUR_TOKEN" \
+               -H "Title: Uptime Kuma Test" \
+               -d "Testing notification integration" \
+               https://ntfy.{{ base_domain }}/uptime-alerts
+          
+          # Check container resource usage
+          docker stats uptime-kuma
+      tags: 
+        - always 

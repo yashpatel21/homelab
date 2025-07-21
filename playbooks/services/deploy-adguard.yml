@@ -150,14 +150,16 @@
       debug:
         msg: |
           📡 DNS PORT 53 STATUS AFTER CONFIGURATION:
-          {% if dns_port_final_check.stdout %}
+          {% if dns_port_final_check is defined and dns_port_final_check.stdout %}
           ⚠️  Port 53 still in use:
           {{ dns_port_final_check.stdout }}
           
           💡 This may be normal if systemd-resolved is configured correctly
           💡 AdGuard Home will still be able to bind to port 53 in container
-          {% else %}
+          {% elif dns_port_final_check is defined %}
           ✅ Port 53 is free for AdGuard Home
+          {% else %}
+          ⏳ DNS port check pending (run with --tags setup,verify for full check)
           {% endif %}
       tags: 
         - setup
@@ -211,6 +213,7 @@
       tags: 
         - deploy
         - verify
+        - always
 
     - name: "Deploy - Display existing AdGuard Home containers"
       debug:
@@ -364,13 +367,22 @@
       tags: 
         - failover
 
-    - name: "Failover - Configure failover script cron job"
-      cron:
-        name: "AdGuard Home DNS failover check"
-        user: "root"
-        job: "{{ script_path }} > /dev/null 2>&1"
-        state: present
+    - name: "Failover - Check if DNS failover cron job already exists"
+      shell: "crontab -l | grep -F 'agh_failover.sh' || echo 'not found'"
+      register: failover_cron_check
+      changed_when: false
+      failed_when: false
       when: has_ntfy_token
+      tags: 
+        - failover
+
+    - name: "Failover - Configure failover script cron job"
+      shell: |
+        # Get current crontab, add our job if not present, then install new crontab
+        (crontab -l 2>/dev/null || echo ""; echo "*	*	*	*	*	{{ script_path }} > /dev/null 2>&1") | crontab -
+      when: 
+        - has_ntfy_token
+        - "'not found' in failover_cron_check.stdout"
       tags: 
         - failover
 
@@ -393,12 +405,14 @@
           📁 Script location: {{ script_path }}
           
           🧪 Script Test Results:
-          {% if failover_script_test is defined %}
+          {% if failover_script_test is defined and failover_script_test is not skipped %}
           • Exit code: {{ failover_script_test.rc }}
           • Output: {{ failover_script_test.stdout if failover_script_test.stdout else 'No output' }}
           {% if failover_script_test.stderr %}
           • Errors: {{ failover_script_test.stderr }}
           {% endif %}
+          {% else %}
+          • Script test skipped (run with --tags failover for full test)
           {% endif %}
           
           💡 Check NTFY at https://ntfy.{{ base_domain }}/opnsense-alerts for failover notifications
@@ -487,12 +501,14 @@
       debug:
         msg: |
           🧪 DNS RESOLUTION TEST:
-          {% if dns_test.rc == 0 %}
+          {% if dns_test is defined and dns_test.rc == 0 %}
           ✅ DNS resolution working
           {{ dns_test.stdout }}
-          {% else %}
+          {% elif dns_test is defined %}
           ❌ DNS resolution failed
           {{ dns_test.stderr if dns_test.stderr else 'No error output' }}
+          {% else %}
+          ⏳ DNS test pending (run with --tags verify for full check)
           {% endif %}
       tags: 
         - verify
@@ -519,9 +535,13 @@
           • DNS Service: {{ ubuntu_server_ip }}:53
           
           📊 Service Status:
+          {% if web_direct_test is defined and web_traefik_test is defined and dns_test is defined %}
           • Direct Access: {{ '✅ Accessible' if web_direct_test.status == 200 else '❌ Not accessible' }}
           • Traefik Access: {{ '✅ Accessible' if web_traefik_test.status == 200 else '❌ Not accessible' }}
           • DNS Resolution: {{ '✅ Working' if dns_test.rc == 0 else '❌ Failed' }}
+          {% else %}
+          • Service verification: ⏳ Run with --tags verify to check service status
+          {% endif %}
           
           🔧 DNS Configuration:
           • systemd-resolved: ✅ Configured for AdGuard Home

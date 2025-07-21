@@ -1,0 +1,42 @@
+# Prometheus Configuration for Homelab Monitoring
+# Defines scrape targets for comprehensive infrastructure monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Ubuntu VM system metrics via Node Exporter
+  - job_name: 'ubuntu-vm'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # OPNsense router metrics via Node Exporter plugin
+  - job_name: 'opnsense-router'
+    static_configs:
+      - targets: ['{{ opnsense_ip }}:9100']
+    scrape_interval: 60s
+
+  # Docker container metrics via cAdvisor
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+
+  # AdGuard Home DNS analytics via AdGuard Exporter
+  - job_name: 'adguard-home'
+    static_configs:
+      - targets: ['adguard-exporter:9618']
+    scrape_interval: 60s
+
+  # OPNsense firewall and service metrics via OPNsense Exporter
+  - job_name: 'opnsense-services'
+    static_configs:
+      - targets: ['opnsense-exporter:8080']
+    scrape_interval: 30s 

@@ -101,6 +101,7 @@
       tags: 
         - deploy
         - verify
+        - always
 
     - name: "Deploy - Display existing Homarr containers"
       debug:
@@ -243,8 +244,12 @@
           • Homarr Dashboard (HTTPS): https://{{ base_domain }}
           
           📊 Service Status:
+          {% if traefik_access_test is defined and running_containers is defined %}
           • Traefik Access: {{ '✅ Accessible' if traefik_access_test.status == 200 else '❌ Not accessible' }}
           • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
+          {% else %}
+          • Service verification: ⏳ Run with --tags verify to check service status
+          {% endif %}
           
           🔧 Service Management Commands:
           • View logs: docker compose -f {{ compose_file }} logs -f

@@ -117,6 +117,7 @@
       tags: 
         - deploy
         - verify
+        - always
 
     - name: "Deploy - Display existing NTFY containers"
       debug:
@@ -527,6 +528,7 @@
                -H "Title: Auth Test" \
                -d "Authentication working!" \
                https://ntfy.{{ base_domain }}/system-updates
+      when: admin_auth_test is defined and monitor_auth_test is defined
       tags:
         - auth
         - verify
@@ -574,16 +576,22 @@
 
 
 
-    - name: "Scripts - Configure Ubuntu update check cron job"
-      cron:
-        name: "Ubuntu update check"
-        user: "{{ ubuntu_primary_user }}"
-        minute: "0"
-        hour: "12"
-        weekday: "0"
-        job: "{{ data_directory }}/scripts/check-updates.sh"
-        state: present
+    - name: "Scripts - Check if Ubuntu update check cron job already exists"
+      shell: "crontab -l -u {{ ubuntu_primary_user }} | grep -F 'check-updates.sh' || echo 'not found'"
+      register: ubuntu_cron_check
+      changed_when: false
+      failed_when: false
       when: scripts_vault_token_available
+      tags: 
+        - scripts
+
+    - name: "Scripts - Configure Ubuntu update check cron job"
+      shell: |
+        # Get current crontab for user, add our job if not present, then install new crontab
+        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "0	12	*	*	0	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
+      when: 
+        - scripts_vault_token_available
+        - "'not found' in ubuntu_cron_check.stdout"
       tags: 
         - scripts
 
@@ -651,16 +659,22 @@
 
 
 
-    - name: "Ubuntu Scripts - Configure Ubuntu update check cron job"
-      cron:
-        name: "Ubuntu update check"
-        user: "{{ ubuntu_primary_user }}"
-        minute: "0"
-        hour: "12"
-        weekday: "0"
-        job: "{{ data_directory }}/scripts/check-updates.sh"
-        state: present
+    - name: "Ubuntu Scripts - Check if Ubuntu update check cron job already exists"
+      shell: "crontab -l -u {{ ubuntu_primary_user }} | grep -F 'check-updates.sh' || echo 'not found'"
+      register: ubuntu_scripts_cron_check
+      changed_when: false
+      failed_when: false
       when: has_vault_token
+      tags: 
+        - scripts
+
+    - name: "Ubuntu Scripts - Configure Ubuntu update check cron job"
+      shell: |
+        # Get current crontab for user, add our job if not present, then install new crontab
+        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "0	12	*	*	0	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
+      when: 
+        - has_vault_token
+        - "'not found' in ubuntu_scripts_cron_check.stdout"
       tags: 
         - scripts
 
@@ -746,15 +760,22 @@
 
 
 
-    - name: "OPNsense - Configure firmware check cron job"
-      cron:
-        name: "OPNsense firmware check"
-        user: "root"
-        minute: "0"
-        hour: "18"
-        job: "(/usr/local/bin/firmware-notify.sh) > /dev/null 2>> /var/log/firmware-notify-errors.log"
-        state: present
+    - name: "OPNsense - Check if firmware check cron job already exists"
+      shell: "crontab -l | grep -F '/usr/local/bin/firmware-notify.sh' || echo 'not found'"
+      register: firmware_cron_check
+      changed_when: false
+      failed_when: false
       when: has_vault_token
+      tags: 
+        - scripts
+
+    - name: "OPNsense - Configure firmware check cron job"
+      shell: |
+        # Get current crontab, add our job if not present, then install new crontab
+        (crontab -l 2>/dev/null || echo ""; echo "0	18	*	*	*	(/usr/local/bin/firmware-notify.sh) > /dev/null 2>> /var/log/firmware-notify-errors.log") | crontab -
+      when: 
+        - has_vault_token
+        - "'not found' in firmware_cron_check.stdout"
       tags: 
         - scripts
 
@@ -841,16 +862,22 @@
 
 
 
-    - name: "Proxmox - Configure update check cron job"
-      cron:
-        name: "Proxmox update check"
-        user: "root"
-        minute: "0"
-        hour: "12"
-        weekday: "0"
-        job: "/usr/local/bin/proxmox-update-check.sh"
-        state: present
+    - name: "Proxmox - Check if update check cron job already exists"
+      shell: "crontab -l | grep -F '/usr/local/bin/proxmox-update-check.sh' || echo 'not found'"
+      register: proxmox_cron_check
+      changed_when: false
+      failed_when: false
       when: has_vault_token
+      tags: 
+        - scripts
+
+    - name: "Proxmox - Configure update check cron job"
+      shell: |
+        # Get current crontab, add our job if not present, then install new crontab
+        (crontab -l 2>/dev/null || echo ""; echo "0	12	*	*	0	/usr/local/bin/proxmox-update-check.sh") | crontab -
+      when: 
+        - has_vault_token
+        - "'not found' in proxmox_cron_check.stdout"
       tags: 
         - scripts
 
@@ -998,12 +1025,16 @@
           • NTFY Topics: https://ntfy.{{ base_domain }}/stats
           
           📊 Service Status:
+          {% if api_test is defined and web_test is defined %}
           • NTFY API: {{ '✅ Accessible' if api_test.status == 200 else '❌ Not accessible' }}
           • Web Interface: {{ '✅ Accessible' if web_test.status == 200 else '❌ Not accessible' }}
-          {% if has_vault_token %}
+          {% if has_vault_token and notification_test is defined %}
           • Notification Test: {{ '✅ Successful' if notification_test.status == 200 else '❌ Failed' }}
           {% else %}
-          • Notification Test: ⏳ Pending vault token setup
+          • Notification Test: ⏳ Pending verification checks
+          {% endif %}
+          {% else %}
+          • Service verification: ⏳ Run with --tags verify to check service status
           {% endif %}
           
           👥 Authentication Status:

@@ -97,6 +97,7 @@
       tags: 
         - deploy
         - verify
+        - always
 
     - name: "Deploy - Display existing Watchtower containers"
       debug:
@@ -256,8 +257,12 @@
           • Notifications: Update reports sent to NTFY
           
           📊 Service Status:
+          {% if running_containers is defined and ntfy_test_result is defined %}
           • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
           • NTFY Integration: {{ '✅ Working' if ntfy_test_result.status in [200, 202] else '❌ Check configuration' }}
+          {% else %}
+          • Service verification: ⏳ Run with --tags verify to check service status
+          {% endif %}
           
           🔧 Service Management Commands:
           • View logs: docker compose -f {{ compose_file }} logs -f

@@ -108,6 +108,7 @@
       tags: 
         - deploy
         - verify
+        - always
 
     - name: "Deploy - Display existing containers using Traefik ports"
       debug:
@@ -255,6 +256,7 @@
       failed_when: false
       tags: 
         - verify
+        - always
 
     - name: "Verify - Display SSL certificate status"
       debug:
@@ -291,9 +293,13 @@
           • Whoami Test Service: https://whoami.{{ base_domain }}
           
           📊 Service Status:
+          {% if dashboard_test is defined and whoami_test is defined and ssl_cert_check is defined %}
           • Dashboard API: {{ '✅ Accessible' if dashboard_test.status == 200 else '❌ Not accessible' }}
           • Whoami Service: {{ '✅ Accessible' if whoami_test.status == 200 else '❌ Not accessible' }}
           • SSL Certificates: {{ '✅ Generated' if not ssl_cert_check.failed else '🔄 Generating...' }}
+          {% else %}
+          • Service verification: ⏳ Run with --tags verify to check service status
+          {% endif %}
           
           🔧 Service Management Commands:
           • View logs: docker compose -f {{ compose_file }} logs -f

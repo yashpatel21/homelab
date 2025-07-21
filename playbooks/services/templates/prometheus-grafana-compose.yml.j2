@@ -1,0 +1,172 @@
+---
+# Prometheus + Grafana Monitoring Stack
+# Complete monitoring solution for homelab infrastructure
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # PROMETHEUS - Metrics Collection and Storage
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: prometheus
+    hostname: prometheus
+    restart: unless-stopped
+    user: "65534:65534"  # nobody user for security
+    networks:
+      - homelab
+    ports:
+      - "127.0.0.1:9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.external-url=https://prometheus.{{ base_domain }}'
+    volumes:
+      - "{{ data_directory }}/{{ service_name }}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
+      - "{{ data_directory }}/{{ service_name }}/prometheus/data:/prometheus"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.{{ base_domain }}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ===========================================================================
+  # GRAFANA - Visualization Dashboards
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: grafana
+    hostname: grafana
+    restart: unless-stopped
+    user: "472:472"  # grafana user
+    networks:
+      - homelab
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD={{ vault_grafana_admin_password }}
+      - GF_SECURITY_SECRET_KEY={{ vault_grafana_secret_key }}
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_INSTALL_PLUGINS=
+      - GF_SERVER_ROOT_URL=https://grafana.{{ base_domain }}
+    volumes:
+      - "{{ data_directory }}/{{ service_name }}/grafana/data:/var/lib/grafana"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.{{ base_domain }}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ===========================================================================
+  # NODE EXPORTER - System Metrics
+  # ===========================================================================
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    hostname: node-exporter
+    restart: unless-stopped
+    user: "65534:65534"  # nobody user
+    networks:
+      - homelab
+    ports:
+      - "127.0.0.1:9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ===========================================================================
+  # CADVISOR - Docker Container Metrics
+  # ===========================================================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.50.0
+    container_name: cadvisor
+    hostname: cadvisor
+    restart: unless-stopped
+    networks:
+      - homelab
+    ports:
+      - "127.0.0.1:8081:8080"
+    command:
+      - '--housekeeping_interval=10s'
+      - '--docker_only=true'
+      - '--store_container_labels=false'
+      - '-v=1'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ===========================================================================
+  # ADGUARD EXPORTER - DNS Analytics
+  # ===========================================================================
+  adguard-exporter:
+    image: ghcr.io/henrywhitaker3/adguard-exporter:v1.2.0
+    container_name: adguard-exporter
+    hostname: adguard-exporter
+    restart: unless-stopped
+    networks:
+      - homelab
+    ports:
+      - "127.0.0.1:9618:9618"
+    environment:
+      - ADGUARD_SERVERS=https://adguard.{{ base_domain }}
+      - ADGUARD_USERNAMES={{ vault_adguard_monitoring_username }}
+      - ADGUARD_PASSWORDS={{ vault_adguard_monitoring_password }}
+      - INTERVAL=30s
+      - LOG_LEVEL=info
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ===========================================================================
+  # OPNSENSE EXPORTER - Firewall and Service Metrics
+  # ===========================================================================
+  opnsense-exporter:
+    image: ghcr.io/athennamind/opnsense-exporter:latest
+    container_name: opnsense-exporter
+    hostname: opnsense-exporter
+    restart: unless-stopped
+    networks:
+      - homelab
+    ports:
+      - "127.0.0.1:8090:8080"
+    command:
+      - --opnsense.protocol=https
+      - --opnsense.address={{ opnsense_ip }}
+      - --opnsense.insecure
+      - --exporter.instance-label=homelab-opnsense
+      - --web.listen-address=:8080
+    environment:
+      - OPNSENSE_EXPORTER_OPS_API_KEY={{ vault_opnsense_api_key }}
+      - OPNSENSE_EXPORTER_OPS_API_SECRET={{ vault_opnsense_api_secret }}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+# ===========================================================================
+# NETWORKS
+# ===========================================================================
+networks:
+  homelab:
+    external: true 

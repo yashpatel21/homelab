@@ -64,6 +64,7 @@
           - git           # Version control system
           - vim           # Text editor
           - unzip         # Archive extraction
+          - apache2-utils # Provides htpasswd for password hashing (needed for monitoring)
           - software-properties-common  # APT repository management
         state: present
       tags: [packages, utilities]

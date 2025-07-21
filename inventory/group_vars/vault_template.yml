@@ -78,6 +78,47 @@ vault_homarr_encryption_key: "REPLACE_WITH_YOUR_HOMARR_ENCRYPTION_KEY"
 # Copy the entire 64-character hex string output
 
 # -----------------------------------------------------------------------------
+# ADGUARD HOME MONITORING CONFIGURATION
+# -----------------------------------------------------------------------------
+# Dedicated monitoring user credentials for AdGuard Home Prometheus monitoring
+# These credentials will be automatically created in AdGuard Home config
+
+vault_adguard_monitoring_username: "monitoring"
+vault_adguard_monitoring_password: "REPLACE_WITH_SECURE_MONITORING_PASSWORD"
+
+# How monitoring user works:
+# The Prometheus + Grafana playbook automatically creates this monitoring user
+# It uses bcrypt password hashing for security and has limited access for metrics collection
+# This provides better security isolation from your admin user
+
+# -----------------------------------------------------------------------------
+# GRAFANA CONFIGURATION
+# -----------------------------------------------------------------------------
+# Grafana admin password and secret key for dashboard security
+
+vault_grafana_admin_password: "REPLACE_WITH_YOUR_GRAFANA_ADMIN_PASSWORD"
+vault_grafana_secret_key: "REPLACE_WITH_YOUR_GRAFANA_SECRET_KEY"
+
+# How to generate Grafana secret key:
+# Run: openssl rand -base64 32
+# Copy the entire base64 string output
+
+# -----------------------------------------------------------------------------
+# OPNSENSE API CONFIGURATION
+# -----------------------------------------------------------------------------
+# API key and secret for OPNsense exporter to access firewall metrics
+
+vault_opnsense_api_key: "REPLACE_WITH_YOUR_OPNSENSE_API_KEY"
+vault_opnsense_api_secret: "REPLACE_WITH_YOUR_OPNSENSE_API_SECRET"
+
+# How to get OPNsense API credentials:
+# 1. Login to OPNsense web interface (https://router.radiowaves.app)
+# 2. Go to System → Access → Users
+# 3. Click "Create and download API key for this user"
+# 4. Copy the generated key and secret
+# 5. Add to vault: `ansible-vault edit inventory/group_vars/all/vault.yml`
+
+# -----------------------------------------------------------------------------
 # EMAIL CONFIGURATION
 # -----------------------------------------------------------------------------
 # Your email for Let's Encrypt certificates
@@ -100,6 +141,10 @@ vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 # vault_ntfy_monitor_password: "your-secure-monitor-password"
 # vault_proxmox_api_token: "PVEAPIToken=homarr-api@pve!homarr=abc123def456..."
 # vault_homarr_encryption_key: "abc123def456789abcdef123456789abcdef123456789abcdef123456789abc"
+# vault_adguard_monitoring_username: "monitoring"
+# vault_adguard_monitoring_password: "your-secure-monitoring-password"
+# vault_grafana_admin_password: "your-secure-grafana-password"
+# vault_grafana_secret_key: "your-base64-encoded-secret-key"
 # vault_letsencrypt_email: "your-email@example.com"
 #
 # =============================================================================

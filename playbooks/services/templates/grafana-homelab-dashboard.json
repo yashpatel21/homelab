@@ -2478,8 +2478,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
+        "h": 9,
+        "w": 9,
         "x": 0,
         "y": 34
       },
@@ -2589,9 +2589,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
+        "h": 9,
+        "w": 9,
+        "x": 9,
         "y": 34
       },
       "id": 27,
@@ -2656,9 +2656,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
+        "h": 9,
+        "w": 6,
+        "x": 18,
         "y": 34
       },
       "id": 28,
@@ -2676,6 +2676,9 @@
           "values": false
         },
         "showPercentChange": false,
+        "text": {
+          "titleSize": 20
+        },
         "textMode": "auto",
         "wideLayout": true
       },
@@ -2765,10 +2768,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
+        "h": 9,
+        "w": 9,
         "x": 0,
-        "y": 42
+        "y": 43
       },
       "id": 29,
       "options": {
@@ -2871,10 +2874,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 42
+        "h": 9,
+        "w": 9,
+        "x": 9,
+        "y": 43
       },
       "id": 30,
       "options": {
@@ -2977,10 +2980,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 42
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 43
       },
       "id": 31,
       "options": {
@@ -3031,12 +3034,785 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 0,
+        "y": 52
+      },
+      "id": 63,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "opnsense_protocol_tcp_connection_count_by_state{job=\"opnsense-services\"}",
+          "legendFormat": "{{state}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "TCP Connection States",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Packets/sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 15,
+        "x": 9,
+        "y": 52
+      },
+      "id": 64,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (reason) (rate(opnsense_protocol_udp_dropped_by_reason_total{job=\"opnsense-services\"}[5m]))",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (reason) (rate(opnsense_protocol_icmp_dropped_by_reason_total{job=\"opnsense-services\"}[5m]))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Dropped Packets",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "description": "packets/sec",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 0,
+        "y": 57
+      },
+      "id": 62,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_protocol_tcp_sent_packets_total{job=\"opnsense-services\"}[5m]) + rate(opnsense_protocol_tcp_received_packets_total{job=\"opnsense-services\"}[5m]))",
+          "legendFormat": "TCP",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_protocol_udp_delivered_packets_total{job=\"opnsense-services\"}[5m]) + rate(opnsense_protocol_udp_output_packets_total{job=\"opnsense-services\"}[5m]))\n",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "UDP",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_protocol_icmp_sent_packets_total{job=\"opnsense-services\"}[5m]) + rate(opnsense_protocol_icmp_calls_total{job=\"opnsense-services\"}[5m]))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "ICMP",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Protocol Traffic Distribution",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "fieldMinMax": true,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 62
+      },
+      "id": 58,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_in_ipv4_block_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "legendFormat": "Blocked/min",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_in_ipv4_block_packets{job=\"opnsense-services\"}[5m])) + sum(rate(opnsense_firewall_in_ipv4_pass_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total/min",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "IPv4 Traffic In",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "fieldMinMax": true,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 62
+      },
+      "id": 59,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_out_ipv4_block_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "legendFormat": "Blocked/min",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_out_ipv4_block_packets{job=\"opnsense-services\"}[5m])) + sum(rate(opnsense_firewall_out_ipv4_pass_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total/min",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "IPv4 Traffic Out",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 51,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "min": 50,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 8,
+        "y": 62
+      },
+      "id": 56,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "# How many times higher/lower than average\n(\n  (\n    sum(opnsense_firewall_in_ipv4_block_packets{job=\"opnsense-services\"})\n  ) / (\n    sum(opnsense_firewall_in_ipv4_block_packets{job=\"opnsense-services\"}) + \n    sum(opnsense_firewall_in_ipv4_pass_packets{job=\"opnsense-services\"})\n  )\n) / (\n  (\n    avg_over_time(sum(opnsense_firewall_in_ipv4_block_packets{job=\"opnsense-services\"})[24h:5m])\n  ) / (\n    avg_over_time(sum(opnsense_firewall_in_ipv4_block_packets{job=\"opnsense-services\"})[24h:5m]) + \n    avg_over_time(sum(opnsense_firewall_in_ipv4_pass_packets{job=\"opnsense-services\"})[24h:5m])\n  )\n) * 100",
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "IPv4 In",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "# How many times higher/lower than average\n(\n  (\n    sum(opnsense_firewall_out_ipv4_block_packets{job=\"opnsense-services\"})\n  ) / (\n    sum(opnsense_firewall_out_ipv4_block_packets{job=\"opnsense-services\"}) + \n    sum(opnsense_firewall_out_ipv4_pass_packets{job=\"opnsense-services\"})\n  )\n) / (\n  (\n    avg_over_time(sum(opnsense_firewall_out_ipv4_block_packets{job=\"opnsense-services\"})[24h:5m])\n  ) / (\n    avg_over_time(sum(opnsense_firewall_out_ipv4_block_packets{job=\"opnsense-services\"})[24h:5m]) + \n    avg_over_time(sum(opnsense_firewall_out_ipv4_pass_packets{job=\"opnsense-services\"})[24h:5m])\n  )\n) * 100",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "IPv4 Out",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "IPv4 Blocking Rate Anomaly",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 50,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "dashed"
+            }
+          },
+          "mappings": [],
+          "min": 50,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 62
+      },
+      "id": 57,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "# How many times higher/lower than average\n(\n  (\n    sum(opnsense_firewall_in_ipv6_block_packets{job=\"opnsense-services\"})\n  ) / (\n    sum(opnsense_firewall_in_ipv6_block_packets{job=\"opnsense-services\"}) + \n    sum(opnsense_firewall_in_ipv6_pass_packets{job=\"opnsense-services\"})\n  )\n) / (\n  (\n    avg_over_time(sum(opnsense_firewall_in_ipv6_block_packets{job=\"opnsense-services\"})[24h:5m])\n  ) / (\n    avg_over_time(sum(opnsense_firewall_in_ipv6_block_packets{job=\"opnsense-services\"})[24h:5m]) + \n    avg_over_time(sum(opnsense_firewall_in_ipv6_pass_packets{job=\"opnsense-services\"})[24h:5m])\n  )\n) * 100",
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "IPv6 In",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "# How many times higher/lower than average\n(\n  (\n    sum(opnsense_firewall_out_ipv6_block_packets{job=\"opnsense-services\"})\n  ) / (\n    sum(opnsense_firewall_out_ipv6_block_packets{job=\"opnsense-services\"}) + \n    sum(opnsense_firewall_out_ipv6_pass_packets{job=\"opnsense-services\"})\n  ) + 1\n) / (\n  (\n    avg_over_time(sum(opnsense_firewall_out_ipv6_block_packets{job=\"opnsense-services\"})[24h:5m])\n  ) / (\n    avg_over_time(sum(opnsense_firewall_out_ipv6_block_packets{job=\"opnsense-services\"})[24h:5m]) + \n    avg_over_time(sum(opnsense_firewall_out_ipv6_pass_packets{job=\"opnsense-services\"})[24h:5m])\n  ) + 1\n) * 100",
+          "hide": true,
+          "instant": false,
+          "legendFormat": "IPv6 Out",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "IPv6 Blocking Rate Anomaly",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "fieldMinMax": true,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 67
+      },
+      "id": 60,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_in_ipv6_block_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "legendFormat": "Blocked/min",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_in_ipv6_block_packets{job=\"opnsense-services\"}[5m])) + sum(rate(opnsense_firewall_in_ipv6_pass_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total/min",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "IPv6 Traffic In",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "fieldMinMax": true,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 67
+      },
+      "id": 61,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_out_ipv6_block_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "legendFormat": "Blocked/min",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(opnsense_firewall_out_ipv6_block_packets{job=\"opnsense-services\"}[5m])) + sum(rate(opnsense_firewall_out_ipv6_pass_packets{job=\"opnsense-services\"}[5m])) * 60",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total/min",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "IPv6 Traffic Out",
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 72
       },
       "id": 33,
       "panels": [],
@@ -3075,7 +3851,7 @@
         "h": 9,
         "w": 4,
         "x": 0,
-        "y": 51
+        "y": 73
       },
       "id": 34,
       "options": {
@@ -3178,7 +3954,7 @@
         "h": 9,
         "w": 20,
         "x": 4,
-        "y": 51
+        "y": 73
       },
       "id": 35,
       "options": {
@@ -3277,7 +4053,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 82
       },
       "id": 36,
       "options": {
@@ -3377,7 +4153,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 82
       },
       "id": 37,
       "options": {
@@ -3480,7 +4256,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 69
+        "y": 91
       },
       "id": 38,
       "options": {
@@ -3583,7 +4359,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 69
+        "y": 91
       },
       "id": 39,
       "options": {
@@ -3686,7 +4462,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 100
       },
       "id": 40,
       "options": {
@@ -3789,7 +4565,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 100
       },
       "id": 41,
       "options": {
@@ -3852,7 +4628,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 87
+        "y": 109
       },
       "id": 42,
       "options": {
@@ -3915,7 +4691,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 97
+        "y": 119
       },
       "id": 43,
       "panels": [],
@@ -3971,7 +4747,7 @@
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 98
+        "y": 120
       },
       "id": 44,
       "maxDataPoints": 100,
@@ -4037,7 +4813,7 @@
         "h": 5,
         "w": 5,
         "x": 4,
-        "y": 98
+        "y": 120
       },
       "id": 48,
       "options": {
@@ -4097,7 +4873,7 @@
         "h": 5,
         "w": 5,
         "x": 9,
-        "y": 98
+        "y": 120
       },
       "id": 47,
       "options": {
@@ -4173,7 +4949,7 @@
         "h": 5,
         "w": 5,
         "x": 14,
-        "y": 98
+        "y": 120
       },
       "id": 45,
       "options": {
@@ -4248,7 +5024,7 @@
         "h": 5,
         "w": 5,
         "x": 19,
-        "y": 98
+        "y": 120
       },
       "id": 49,
       "options": {
@@ -4316,7 +5092,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 103
+        "y": 125
       },
       "id": 51,
       "maxDataPoints": 3,
@@ -4390,7 +5166,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 103
+        "y": 125
       },
       "id": 52,
       "options": {
@@ -4438,7 +5214,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 103
+        "y": 125
       },
       "id": 53,
       "libraryPanel": {
@@ -4487,7 +5263,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 111
+        "y": 133
       },
       "id": 50,
       "options": {
@@ -4610,7 +5386,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 111
+        "y": 133
       },
       "id": 54,
       "options": {
@@ -4700,7 +5476,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 111
+        "y": 133
       },
       "id": 55,
       "options": {
@@ -4754,23 +5530,216 @@
         }
       ],
       "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 141
+      },
+      "id": 67,
+      "panels": [],
+      "title": "Uptime Kuma",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 70,
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 1,
+                  "text": "Down"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "Up"
+                },
+                "2": {
+                  "color": "yellow",
+                  "index": 2,
+                  "text": "Pending"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 14,
+        "x": 0,
+        "y": 142
+      },
+      "id": 65,
+      "interval": "1m",
+      "options": {
+        "colWidth": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "monitor_status{job=\"uptime-kuma\", monitor_type=\"http\"}",
+          "legendFormat": "{{monitor_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Monitor Status",
+      "type": "status-history"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 10,
+        "x": 14,
+        "y": 142
+      },
+      "id": 66,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "monitor_response_time{job=\"uptime-kuma\", monitor_type=\"http\"}",
+          "legendFormat": "{{monitor_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Monitor Response Time",
+      "type": "timeseries"
     }
   ],
   "preload": false,
-  "refresh": "1m",
   "schemaVersion": 40,
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Homelab",
   "uid": "eesjm580d6osgb",
-  "version": 5,
+  "version": 13,
   "weekStart": ""
 }

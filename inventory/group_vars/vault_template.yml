@@ -104,6 +104,16 @@ vault_grafana_secret_key: "REPLACE_WITH_YOUR_GRAFANA_SECRET_KEY"
 # Copy the entire base64 string output
 
 # -----------------------------------------------------------------------------
+# UPTIME KUMA CONFIGURATION
+# -----------------------------------------------------------------------------
+# Admin password for Uptime Kuma Prometheus metrics endpoint
+
+vault_uptime_kuma_admin_password: "REPLACE_WITH_YOUR_UPTIME_KUMA_ADMIN_PASSWORD"
+
+# This is the same password you use to login to Uptime Kuma web interface
+# Used by Prometheus to authenticate when scraping /metrics endpoint
+
+# -----------------------------------------------------------------------------
 # OPNSENSE API CONFIGURATION
 # -----------------------------------------------------------------------------
 # API key and secret for OPNsense exporter to access firewall metrics

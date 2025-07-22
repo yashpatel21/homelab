@@ -60,6 +60,7 @@
         - "{{ data_directory }}/{{ service_name }}/acme"
         - "{{ data_directory }}/{{ service_name }}/config"
         - "{{ data_directory }}/{{ service_name }}/logs"
+        - "{{ data_directory }}/{{ service_name }}/dynamic"
       tags: 
         - setup
         - always

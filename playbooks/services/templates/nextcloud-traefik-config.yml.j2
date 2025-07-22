@@ -1,0 +1,43 @@
+# =============================================================================
+# Traefik Dynamic Configuration for Nextcloud
+# =============================================================================
+# 
+# This configuration provides SSL-terminated access to:
+# - Nextcloud Instance: https://cloud.{{ base_domain }}
+#
+# Note: AIO Admin Interface accessed directly via http://192.168.1.20:9080
+# for initial setup, then via Nextcloud admin settings thereafter.
+#
+# Generated from Ansible template: nextcloud-traefik-config.yml.j2
+# =============================================================================
+
+http:
+  routers:
+    # Nextcloud main instance router
+    nextcloud:
+      rule: "Host(`cloud.{{ base_domain }}`)"
+      entrypoints:
+        - websecure
+      service: nextcloud-service
+      middlewares:
+        - nextcloud-headers
+      tls:
+        certResolver: {{ ssl_cert_resolver }}
+
+  services:
+    # Nextcloud main instance service
+    nextcloud-service:
+      loadBalancer:
+        servers:
+          - url: "http://nextcloud-aio-apache:11000"
+
+  middlewares:
+    # Headers for main Nextcloud instance
+    nextcloud-headers:
+      headers:
+        hostsProxyHeaders:
+          - "X-Forwarded-Host"
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+          X-Forwarded-For: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
+        referrerPolicy: "same-origin" 

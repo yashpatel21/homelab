@@ -1,0 +1,49 @@
+---
+# =============================================================================
+# Nextcloud All-in-One (AIO) Docker Compose Configuration
+# =============================================================================
+# 
+# This Docker Compose file deploys Nextcloud All-in-One with:
+# - Nextcloud AIO master container for management and deployment
+# - Traefik integration via dynamic configuration
+# - Persistent data volumes for configuration
+# - Watchtower labels for automatic updates
+# - Homelab network integration
+# - Data storage in /storage/nextcloud (handled automatically by AIO)
+#
+# Generated from Ansible template: nextcloud-compose.yml.j2
+# =============================================================================
+
+networks:
+  {{ homelab_network_name }}:
+    external: true
+
+services:
+  nextcloud-aio-mastercontainer:
+    image: nextcloud/all-in-one:latest
+    init: true
+    restart: always
+    container_name: nextcloud-aio-mastercontainer
+    volumes:
+      - nextcloud_aio_mastercontainer:/mnt/docker-aio-config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - {{ homelab_network_name }}
+    ports:
+      - "9080:8080"
+    environment:
+      - APACHE_PORT=11000
+      - APACHE_IP_BINDING=0.0.0.0
+      - APACHE_ADDITIONAL_NETWORK={{ homelab_network_name }}
+      - NEXTCLOUD_DATADIR=/storage/nextcloud  # Host path where AIO will store data
+      # Optional: Skip domain validation if using custom domains
+      # - SKIP_DOMAIN_VALIDATION=true
+      # Optional: Set timezone
+      - TZ={{ timezone | default('UTC') }}
+    labels:
+      # Watchtower automatic updates
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  nextcloud_aio_mastercontainer:
+    name: nextcloud_aio_mastercontainer 

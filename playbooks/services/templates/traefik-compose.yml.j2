@@ -26,6 +26,10 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       
+      # File Provider for Dynamic Configuration
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      
       # Entry Points
       - "--entryPoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
@@ -61,6 +65,8 @@ services:
       - "{{ data_directory }}/traefik/acme:/letsencrypt"
       # Docker socket for service discovery
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      # Dynamic configuration files
+      - "{{ data_directory }}/traefik/dynamic:/etc/traefik/dynamic:ro"
     
     networks:
       - {{ homelab_network_name }}

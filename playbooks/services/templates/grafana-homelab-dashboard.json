@@ -5629,6 +5629,7 @@
           "refId": "A"
         }
       ],
+      "timeFrom": "1h",
       "title": "Monitor Status",
       "type": "status-history"
     },
@@ -5733,13 +5734,13 @@
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Homelab",
   "uid": "eesjm580d6osgb",
-  "version": 13,
+  "version": 16,
   "weekStart": ""
 }

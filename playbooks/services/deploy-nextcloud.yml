@@ -80,7 +80,6 @@
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
         mode: '0644'
-        backup: yes
       register: traefik_config_updated
       tags: 
         - setup

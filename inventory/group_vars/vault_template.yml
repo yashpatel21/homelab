@@ -129,6 +129,44 @@ vault_opnsense_api_secret: "REPLACE_WITH_YOUR_OPNSENSE_API_SECRET"
 # 5. Add to vault: `ansible-vault edit inventory/group_vars/all/vault.yml`
 
 # -----------------------------------------------------------------------------
+# NEXTCLOUD AIO CONFIGURATION
+# -----------------------------------------------------------------------------
+# Credentials and passwords for Nextcloud All-in-One platform
+
+vault_nextcloud_aio_passphrase: "REPLACE_WITH_YOUR_AIO_PASSPHRASE"
+vault_nextcloud_borg_backup_password: "REPLACE_WITH_YOUR_BORG_BACKUP_PASSWORD"
+
+# How to get these values:
+# 1. AIO Passphrase:
+#    - Deploy Nextcloud AIO using the playbook
+#    - Access http://192.168.1.20:9080 for initial setup
+#    - Copy the auto-generated passphrase displayed on first visit
+#    - This passphrase is needed to access the AIO admin interface
+#
+# 2. Borg Backup Password:
+#    - Complete initial Nextcloud AIO setup via the admin interface
+#    - Go to "Backup and restore" section in AIO admin
+#    - Copy the auto-generated Borg backup encryption password
+#    - This password encrypts/decrypts Nextcloud backups
+#
+# Security Notes:
+# - Store these passwords safely - losing them means losing access to data
+# - AIO passphrase: Required for AIO admin access and container management
+# - Borg password: Required for backup restoration - backup immediately after setup
+
+# -----------------------------------------------------------------------------
+# CONVERTX CONFIGURATION
+# -----------------------------------------------------------------------------
+# JWT secret for ConvertX file conversion service authentication
+
+vault_convertx_jwt_secret: "REPLACE_WITH_YOUR_CONVERTX_JWT_SECRET"
+
+# How to generate ConvertX JWT secret:
+# Run: openssl rand -base64 64
+# Copy the entire base64 string output
+# This secret is used to sign JSON Web Tokens for user authentication
+
+# -----------------------------------------------------------------------------
 # EMAIL CONFIGURATION
 # -----------------------------------------------------------------------------
 # Your email for Let's Encrypt certificates
@@ -155,6 +193,11 @@ vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 # vault_adguard_monitoring_password: "your-secure-monitoring-password"
 # vault_grafana_admin_password: "your-secure-grafana-password"
 # vault_grafana_secret_key: "your-base64-encoded-secret-key"
+# vault_opnsense_api_key: "your-opnsense-api-key"
+# vault_opnsense_api_secret: "your-opnsense-api-secret"
+# vault_nextcloud_aio_passphrase: "your-aio-passphrase-from-initial-setup"
+# vault_nextcloud_borg_backup_password: "your-borg-backup-encryption-password"
+# vault_convertx_jwt_secret: "your-base64-encoded-jwt-secret"
 # vault_letsencrypt_email: "your-email@example.com"
 #
 # =============================================================================

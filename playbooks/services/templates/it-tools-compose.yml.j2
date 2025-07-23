@@ -1,0 +1,41 @@
+---
+# =============================================================================
+# IT Tools Docker Compose Configuration
+# =============================================================================
+# 
+# This Docker Compose file deploys IT Tools with:
+# - Collection of handy online developer tools
+# - Traefik integration via labels
+# - Watchtower labels for automatic updates
+# - Homelab network integration
+# - SSL termination via Traefik
+#
+# Generated from Ansible template: it-tools-compose.yml.j2
+# =============================================================================
+
+networks:
+  {{ homelab_network_name }}:
+    external: true
+
+services:
+  it-tools:
+    image: corentinth/it-tools:latest
+    container_name: it-tools
+    restart: always
+    networks:
+      - {{ homelab_network_name }}
+    labels:
+      # Traefik configuration
+      - "traefik.enable=true"
+      - "traefik.http.routers.it-tools.rule=Host(`ittools.{{ base_domain }}`)"
+      - "traefik.http.routers.it-tools.entrypoints=websecure"
+      - "traefik.http.routers.it-tools.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.it-tools.loadbalancer.server.port=80"
+      
+      # Watchtower automatic updates
+      - "com.centurylinklabs.watchtower.enable=true"
+      
+      # Service metadata
+      - "homelab.service=it-tools"
+      - "homelab.category=productivity"
+      - "homelab.description=Collection of handy online tools for developers" 

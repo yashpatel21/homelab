@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# ConvertX Docker Compose Configuration
+# =============================================================================
+# 
+# This Docker Compose file deploys ConvertX with:
+# - Self-hosted file converter supporting 1000+ formats
+# - Traefik integration via labels for SSL termination
+# - Secure JWT authentication and user management
+# - Watchtower labels for automatic updates
+# - Homelab network integration
+# - Persistent data storage for conversion history
+# - Automatic file cleanup configuration
+#
+# Generated from Ansible template: convertx-compose.yml.j2
+# =============================================================================
+
+networks:
+  {{ homelab_network_name }}:
+    external: true
+
+services:
+  convertx:
+    image: ghcr.io/c4illin/convertx:latest
+    container_name: convertx
+    restart: unless-stopped
+    networks:
+      - {{ homelab_network_name }}
+    environment:
+      # JWT Authentication (secure token from vault)
+      - "JWT_SECRET={{ vault_convertx_jwt_secret }}"
+      
+      # Security Configuration
+      - "ACCOUNT_REGISTRATION=false"           # Disable public registration for security
+      - "HTTP_ALLOWED=false"                   # Enforce HTTPS only
+      - "ALLOW_UNAUTHENTICATED=false"          # Require authentication
+      
+      # File Management
+      - "AUTO_DELETE_EVERY_N_HOURS=24"         # Clean up files every 24 hours
+      - "HIDE_HISTORY=false"                   # Show conversion history
+      
+      # Localization
+      - "LANGUAGE=en"                          # English language
+      
+      # Optional: FFmpeg optimization args (uncomment if needed)
+      # - "FFMPEG_ARGS=-preset veryfast"
+    volumes:
+      # Persistent data storage for user accounts and conversion history
+      - "{{ data_directory }}/{{ service_name }}/data:/app/data"
+    labels:
+      # Traefik configuration
+      - "traefik.enable=true"
+      - "traefik.http.routers.convertx.rule=Host(`convert.{{ base_domain }}`)"
+      - "traefik.http.routers.convertx.entrypoints=websecure"
+      - "traefik.http.routers.convertx.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.convertx.loadbalancer.server.port=3000"
+      
+      # Watchtower automatic updates
+      - "com.centurylinklabs.watchtower.enable=true"
+      
+      # Service metadata
+      - "homelab.service=convertx"
+      - "homelab.category=productivity"
+      - "homelab.description=Self-hosted file converter supporting 1000+ formats" 

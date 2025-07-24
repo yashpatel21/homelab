@@ -105,6 +105,20 @@ update_check_schedules:
 # DNS failover monitoring schedule
 dns_failover_schedule: "* * * * *"  # Every minute for OPNsense AdGuard Home failover
 
+# -----------------------------------------------------------------------------
+# AUTHENTICATION CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Feature flag to enable/disable authentication across all services
+# Set to false during initial deployment, true after Authentik is ready
+auth_enabled: false
+
+# User Groups with Access Control
+homelab_user_groups:
+  admins: ['yash']     # Full access to everything
+  operators: ['dushyant']  # Full AdGuard + View-only admin services + Regular user family services
+  family: ['leena', 'ria']  # NextCloud + Homarr only
+
 # =============================================================================
 # IMPORTANT NOTES
 # =============================================================================

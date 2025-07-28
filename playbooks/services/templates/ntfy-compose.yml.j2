@@ -15,6 +15,7 @@ services:
       - NTFY_AUTH_FILE=/var/cache/ntfy/auth.db
       - NTFY_AUTH_DEFAULT_ACCESS=deny-all
       - NTFY_BEHIND_PROXY=true
+      - NTFY_UPSTREAM_BASE_URL=https://ntfy.sh
     volumes:
       - {{ data_directory }}/ntfy/cache:/var/cache/ntfy
       - {{ data_directory }}/ntfy/config:/etc/ntfy

@@ -13,9 +13,13 @@ services:
       - "traefik.http.routers.uptime-kuma.rule=Host(`uptime.{{ base_domain }}`)"
       - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
       - "traefik.http.routers.uptime-kuma.tls.certresolver={{ ssl_cert_resolver }}"
+{% if auth_enabled | default(false) %}
+      # Single router with main authentik middleware
+      - "traefik.http.routers.uptime-kuma.middlewares=authentik@file"
+{% endif %}
       - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
       - "com.centurylinklabs.watchtower.enable=true"
 
 networks:
   {{ homelab_network_name }}:
-    external: true 
+    external: true

@@ -5,6 +5,9 @@ services:
     command:
       - serve
     restart: unless-stopped
+    ports:
+      # Internal access for scripts (bypasses Authentik authentication)
+      - "0.0.0.0:8082:80"
     environment:
       - TZ={{ system_timezone }}
       - NTFY_BASE_URL=https://ntfy.{{ base_domain }}
@@ -23,6 +26,10 @@ services:
       - "traefik.http.routers.ntfy.rule=Host(`ntfy.{{ base_domain }}`)"
       - "traefik.http.routers.ntfy.entrypoints=websecure"
       - "traefik.http.routers.ntfy.tls.certresolver={{ ssl_cert_resolver }}"
+{% if auth_enabled | default(false) %}
+      # Forward authentication to Authentik for notification service access
+      - "traefik.http.routers.ntfy.middlewares=authentik@file"
+{% endif %}
       - "traefik.http.services.ntfy.loadbalancer.server.port=80"
       
       # Watchtower updates

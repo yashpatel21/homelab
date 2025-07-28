@@ -263,6 +263,25 @@
       tags: 
         - deploy
 
+    - name: "Deploy - Wait for DNS failover to Cloudflare (if AdGuard stopped)"
+      pause:
+        seconds: 90
+        prompt: |
+          
+          🔄 DNS FAILOVER WAIT
+          ==================
+          
+          AdGuard Home has been stopped, which may have caused DNS resolution failure.
+          Waiting 90 seconds for OPNsense failover script to detect the outage 
+          and automatically switch DNS to Cloudflare DNS over TLS.
+          
+          This ensures Docker Hub connectivity for image pulling.
+          
+          ⏱️  Please wait...
+      when: cleanup_result.changed
+      tags: 
+        - deploy
+
     - name: "Deploy - Pull latest container images"
       command: "docker compose -f {{ compose_file }} pull"
       register: pull_result

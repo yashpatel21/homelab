@@ -33,7 +33,13 @@ services:
       # Security Configuration
       - "ACCOUNT_REGISTRATION=false"           # Disable public registration for security
       - "HTTP_ALLOWED=false"                   # Enforce HTTPS only
-      - "ALLOW_UNAUTHENTICATED=false"          # Require authentication
+{% if auth_enabled | default(false) %}
+      # Forward authentication mode - let Authentik handle authentication
+      - "ALLOW_UNAUTHENTICATED=true"           # Allow forward auth to handle authentication
+{% else %}
+      # Direct authentication mode - ConvertX handles authentication
+      - "ALLOW_UNAUTHENTICATED=false"          # Require direct JWT authentication
+{% endif %}
       
       # File Management
       - "AUTO_DELETE_EVERY_N_HOURS=24"         # Clean up files every 24 hours
@@ -53,6 +59,10 @@ services:
       - "traefik.http.routers.convertx.rule=Host(`convert.{{ base_domain }}`)"
       - "traefik.http.routers.convertx.entrypoints=websecure"
       - "traefik.http.routers.convertx.tls.certresolver={{ ssl_cert_resolver }}"
+{% if auth_enabled | default(false) %}
+      # Forward authentication to Authentik - JWT auth bypassed via ALLOW_UNAUTHENTICATED
+      - "traefik.http.routers.convertx.middlewares=authentik@file"
+{% endif %}
       - "traefik.http.services.convertx.loadbalancer.server.port=3000"
       
       # Watchtower automatic updates

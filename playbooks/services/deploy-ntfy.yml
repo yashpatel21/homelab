@@ -257,6 +257,45 @@
       tags: 
         - auth
 
+    # =============================================================================
+    # AUTHENTIK INTEGRATION: NTFY-READER USER FOR SSO
+    # =============================================================================
+
+    - name: "Auth - Check if ntfy-reader user already exists"
+      shell: "docker exec ntfy ntfy user list"
+      register: reader_user_check
+      changed_when: false
+      failed_when: false
+      when: auth_enabled | default(false) | bool
+      tags: 
+        - auth
+        - verify
+
+    - name: "Auth - Create ntfy-reader user for Authentik integration (if auth enabled)"
+      shell: "printf '{{ vault_ntfy_reader_password }}\n{{ vault_ntfy_reader_password }}\n' | docker exec -i ntfy ntfy user add ntfy-reader"
+      when: 
+        - auth_enabled | default(false) | bool
+        - "'ntfy-reader' not in reader_user_check.stdout"
+      register: reader_created
+      failed_when: reader_created.rc != 0 and 'already exists' not in reader_created.stderr
+      tags: 
+        - auth
+
+    - name: "Auth - Set read permissions for ntfy-reader user (Authentik integration)"
+      shell: |
+        docker exec ntfy ntfy access ntfy-reader {{ item }} read
+      loop:
+        - homelab-updates
+        - uptime-alerts
+        - system-updates
+        - proxmox-alerts
+        - opnsense-alerts
+      when: auth_enabled | default(false) | bool
+      failed_when: false
+      changed_when: false
+      tags: 
+        - auth
+
     - name: "Auth - Set anonymous read access for topics"
       shell: |
         docker exec ntfy ntfy access everyone {{ item }} read
@@ -290,6 +329,14 @@
           • Role: user (topic write access)
           {% endif %}
           
+          {% if reader_created is defined and reader_created.changed %}
+          📖 Reader User Created (Authentik Integration):
+          • Username: ntfy-reader
+          • Password: [from vault]
+          • Role: user (topic read access only)
+          • Purpose: Mobile apps + web dashboard via Authentik SSO
+          {% endif %}
+          
           ✅ Using secure passwords from vault.yml
           
           💡 To change passwords later:
@@ -298,7 +345,12 @@
           
           # Change monitor password:
           docker exec -it ntfy ntfy user change-pass homelab-monitor
-      when: (admin_created is defined and admin_created.changed) or (monitor_created is defined and monitor_created.changed)
+          {% if auth_enabled | default(false) | bool %}
+          
+          # Change reader password:
+          docker exec -it ntfy ntfy user change-pass ntfy-reader
+          {% endif %}
+      when: (admin_created is defined and admin_created.changed) or (monitor_created is defined and monitor_created.changed) or (reader_created is defined and reader_created.changed)
       tags: 
         - auth
         - always
@@ -496,6 +548,21 @@
         - auth
         - verify
 
+    - name: "Auth Verify - Test ntfy-reader user authentication (if auth enabled)"
+      uri:
+        url: "https://ntfy.{{ base_domain }}/v1/account"
+        method: GET
+        headers:
+          Authorization: "Basic {{ ('ntfy-reader:' + vault_ntfy_reader_password) | b64encode }}"
+        timeout: 10
+        validate_certs: false
+      register: reader_auth_test
+      failed_when: false
+      when: auth_enabled | default(false) | bool
+      tags:
+        - auth
+        - verify
+
     - name: "Auth Verify - Display authentication test results"
       debug:
         msg: |
@@ -513,6 +580,14 @@
           • Error: {{ monitor_auth_test.msg | default('Unknown error') }}
           {% endif %}
           
+          {% if auth_enabled | default(false) | bool and reader_auth_test is defined %}
+          📖 NTFY-Reader User Authentication (Authentik Integration):
+          • Status: {{ '✅ Success' if reader_auth_test.status == 200 else '❌ Failed (' + (reader_auth_test.status | string) + ')' }}
+          {% if reader_auth_test.status != 200 %}
+          • Error: {{ reader_auth_test.msg | default('Unknown error') }}
+          {% endif %}
+          {% endif %}
+          
           🧪 Manual Authentication Tests:
           
           # Test admin user via command line:
@@ -522,6 +597,12 @@
           # Test monitor user via command line:
           curl -u homelab-monitor:{{ vault_ntfy_monitor_password }} \
                https://ntfy.{{ base_domain }}/v1/account
+          {% if auth_enabled | default(false) | bool %}
+          
+          # Test reader user via command line:
+          curl -u ntfy-reader:{{ vault_ntfy_reader_password }} \
+               https://ntfy.{{ base_domain }}/v1/account
+          {% endif %}
           
           # Test sending notification with monitor user:
           curl -u homelab-monitor:{{ vault_ntfy_monitor_password }} \

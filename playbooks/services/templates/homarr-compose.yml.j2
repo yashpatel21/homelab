@@ -8,6 +8,23 @@ services:
       - {{ data_directory }}/homarr/appdata:/appdata
     environment:
       - SECRET_ENCRYPTION_KEY={{ vault_homarr_encryption_key }}
+      - BASE_URL=https://{{ base_domain }}
+      - NEXTAUTH_URL=https://{{ base_domain }}
+{% if auth_enabled | default(false) %}
+      # Authentik OIDC Integration - Based on official Homarr integration docs
+      - AUTH_PROVIDERS=oidc,credentials
+      - AUTH_OIDC_CLIENT_ID={{ vault_authentik_homarr_client_id }}
+      - AUTH_OIDC_CLIENT_SECRET={{ vault_authentik_homarr_client_secret }}
+      - AUTH_OIDC_ISSUER=https://auth.{{ base_domain }}/application/o/homarr/
+      - AUTH_OIDC_URI=https://auth.{{ base_domain }}/application/o/authorize/
+      - AUTH_OIDC_CLIENT_NAME=authentik
+      - AUTH_OIDC_SCOPE_OVERWRITE=openid email profile groups
+      - AUTH_OIDC_GROUPS_ATTRIBUTE=groups
+      - AUTH_OIDC_FORCE_USERINFO=true
+      - OAUTH_ALLOW_DANGEROUS_EMAIL_ACCOUNT_LINKING=true
+      - AUTH_LOGOUT_REDIRECT_URL=https://auth.{{ base_domain }}/application/o/homarr/end-session/
+      - AUTH_OIDC_AUTO_LOGIN=true
+{% endif %}
     networks:
       - {{ homelab_network_name }}
     labels:

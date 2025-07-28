@@ -103,8 +103,8 @@
     - name: "Setup - Set Nextcloud storage directory permissions"
       file:
         path: "/storage/{{ service_name }}"
-        owner: "{{ ubuntu_primary_user }}"
-        group: "{{ ubuntu_primary_user }}"
+        owner: "33"  # www-data user in Nextcloud AIO Apache container
+        group: "33"  # www-data group in Nextcloud AIO Apache container
         mode: '0755'
         recurse: yes
       tags: 

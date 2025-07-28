@@ -1,0 +1,273 @@
+---
+# =============================================================================
+# DEPLOY AUTHENTIK SSO INFRASTRUCTURE PLAYBOOK
+# =============================================================================
+# 
+# This playbook deploys the Authentik SSO infrastructure components:
+# - PostgreSQL database for Authentik data storage
+# - Redis cache for session management
+# - Authentik server with initial configuration
+# - Traefik dynamic middleware for authentication
+#
+# Prerequisites:
+# - auth_enabled: true in group_vars/all/vars.yml
+# - All authentication vault variables configured
+# - DNS override for auth.radiowaves.app configured in OPNsense
+#
+# After deployment:
+# 1. Complete Authentik manual setup via web interface
+# 2. Configure user groups and OIDC applications
+# 3. Run deploy-services-with-auth.yml to enable authentication on services
+# =============================================================================
+
+- name: Deploy Authentik SSO Infrastructure
+  hosts: ubuntu_servers
+  become: yes
+  gather_facts: yes
+  vars:
+    # Authentik service configuration
+    authentik_service_name: "authentik"
+    authentik_compose_file: "{{ data_directory }}/compose/authentik-compose.yml"
+
+  pre_tasks:
+    - name: "🔍 Verify Prerequisites"
+      block:
+        - name: Check auth_enabled setting
+          fail:
+            msg: |
+              ❌ ERROR: auth_enabled must be set to 'true' in group_vars/all/vars.yml
+              
+              Please edit inventory/group_vars/all/vars.yml and set:
+              auth_enabled: true
+              
+              Then re-run this playbook.
+          when: not (auth_enabled | default(false) | bool)
+          
+        - name: Verify required vault variables exist
+          fail:
+            msg: |
+              ❌ ERROR: Required vault variables missing.
+              
+              Please ensure these variables are configured in vault.yml:
+              - vault_adguard_admin_username
+              - vault_adguard_admin_password  
+              - vault_authentik_postgres_password
+              - vault_authentik_secret_key
+              - vault_authentik_grafana_client_secret
+              - vault_authentik_homarr_client_secret
+              
+              Note: Admin user/password will be set manually via initial setup.
+          when: >
+            vault_adguard_admin_username is not defined or
+            vault_adguard_admin_password is not defined or
+            vault_authentik_postgres_password is not defined or
+            vault_authentik_secret_key is not defined or
+            vault_authentik_grafana_client_secret is not defined or
+            vault_authentik_homarr_client_secret is not defined
+
+        - name: Display prerequisites status
+          debug:
+            msg: |
+              ✅ Prerequisites Check Passed
+              
+              📋 Configuration Status:
+              - auth_enabled: {{ auth_enabled }}
+              - base_domain: {{ base_domain }}
+              - Vault variables: Configured
+              
+              🚀 Ready to proceed with Authentik deployment
+
+  tasks:
+    # ==========================================================================
+    # AUTHENTIK INFRASTRUCTURE DEPLOYMENT
+    # ==========================================================================
+    - name: "Authentik Infrastructure Deployment"
+      debug:
+        msg: |
+          🔐 AUTHENTIK SSO INFRASTRUCTURE DEPLOYMENT
+          =========================================
+          
+          This playbook deploys the Authentik SSO infrastructure:
+          
+          📦 Components:
+          • PostgreSQL Database
+          • Redis Cache  
+          • Authentik Server
+          • Traefik Authentication Middleware
+          
+          🔄 What happens after deployment:
+          1. Complete Authentik initial setup via web interface
+          2. Configure user groups and OIDC applications
+          3. Run deploy-services-with-auth.yml to enable authentication on services
+          
+          🚀 Starting Authentik infrastructure deployment...
+
+    # ==========================================================================
+    # TRAEFIK DYNAMIC CONFIGURATION
+    # ==========================================================================
+    - name: "⚙️ Create Traefik Dynamic Authentication Configuration"
+      block:
+        - name: Create Traefik dynamic configuration directory
+          file:
+            path: "{{ data_directory }}/traefik/dynamic"
+            state: directory
+            owner: "{{ ubuntu_primary_user }}"
+            group: "{{ ubuntu_primary_user }}"
+            mode: '0755'
+
+        - name: Generate Authentik middleware configuration
+          template:
+            src: authentik-middleware.yml.j2
+            dest: "{{ data_directory }}/traefik/dynamic/authentik-middleware.yml"
+            owner: "{{ ubuntu_primary_user }}"
+            group: "{{ ubuntu_primary_user }}"
+            mode: '0644'
+            backup: yes
+          notify: reload traefik
+
+        - name: Display Traefik configuration status
+          debug:
+            msg: |
+              
+              ⚙️ TRAEFIK AUTHENTICATION CONFIGURATION
+              ======================================
+              
+              ✅ Created: {{ data_directory }}/traefik/dynamic/authentik-middleware.yml
+              
+              🔧 Configuration includes:
+              - Authentik forward authentication middleware
+              - AdGuard Home header injection middleware  
+              - Middleware chain configurations
+              
+              🔄 Traefik will automatically reload the configuration.
+
+    # ==========================================================================
+    # AUTHENTIK INFRASTRUCTURE DEPLOYMENT
+    # ==========================================================================
+    - name: "🚀 Deploy Authentik Infrastructure"
+      block:
+        - name: Create Authentik directories
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: "{{ ubuntu_primary_user }}"
+            group: "{{ ubuntu_primary_user }}"
+            mode: '0755'
+          loop:
+            - "{{ data_directory }}/{{ authentik_service_name }}"
+            - "{{ data_directory }}/{{ authentik_service_name }}/postgresql"
+            - "{{ data_directory }}/{{ authentik_service_name }}/redis"
+            - "{{ data_directory }}/{{ authentik_service_name }}/media"
+            - "{{ data_directory }}/{{ authentik_service_name }}/certs"
+
+        - name: Fix Redis directory permissions
+          file:
+            path: "{{ data_directory }}/{{ authentik_service_name }}/redis"
+            state: directory
+            owner: '999'
+            group: '999'
+            mode: '0755'
+            recurse: yes
+          tags:
+            - permissions
+
+        - name: Generate Authentik Docker Compose configuration
+          template:
+            src: authentik-compose.yml.j2
+            dest: "{{ authentik_compose_file }}"
+            owner: "{{ ubuntu_primary_user }}"
+            group: "{{ ubuntu_primary_user }}"
+            mode: '0644'
+            backup: yes
+
+        - name: Deploy Authentik infrastructure
+          shell: |
+            cd {{ data_directory }}/compose
+            docker compose -f {{ authentik_compose_file | basename }} pull
+            docker compose -f {{ authentik_compose_file | basename }} up -d
+          become_user: "{{ ubuntu_primary_user }}"
+
+        - name: Wait for Authentik to be ready
+          uri:
+            url: "https://auth.{{ base_domain }}/if/flow/initial-setup/"
+            method: GET
+            timeout: 10
+            validate_certs: no
+          register: authentik_health
+          until: authentik_health.status == 200
+          retries: 30
+          delay: 10
+          ignore_errors: yes
+
+        - name: Display Authentik deployment status
+          debug:
+            msg: |
+              
+              🚀 AUTHENTIK INFRASTRUCTURE DEPLOYED
+              ===================================
+              
+              ✅ PostgreSQL Database: Running
+              ✅ Redis Cache: Running  
+              ✅ Authentik Server: Running
+              
+              🌐 Access URLs:
+              - Authentik: https://auth.{{ base_domain }}
+              - Initial Setup: https://auth.{{ base_domain }}/if/flow/initial-setup/
+              
+              🔑 Next Steps:
+              1. Visit the Initial Setup URL above
+              2. Create your admin username and password
+              3. Complete the setup wizard
+              
+              {% if authentik_health.status == 200 %}
+              ✅ Service Health: Ready for initial setup
+              {% else %}
+              ⚠️  Service Health: Starting up (may take a few more minutes)
+              {% endif %}
+
+
+
+    # ==========================================================================
+    # POST-DEPLOYMENT SUMMARY AND NEXT STEPS
+    # ==========================================================================
+    - name: "📋 Deployment Summary and Next Steps"
+      debug:
+        msg: |
+          
+          🎉 AUTHENTIK SSO INFRASTRUCTURE DEPLOYMENT COMPLETE
+          =================================================
+          
+          📊 DEPLOYMENT SUMMARY:
+          
+          🚀 Infrastructure Deployed:
+          ✅ Authentik SSO Server
+          ✅ PostgreSQL Database  
+          ✅ Redis Cache
+          ✅ Traefik Authentication Middleware
+          
+          🌐 Access URL: https://auth.{{ base_domain }}
+          🔧 Initial Setup: https://auth.{{ base_domain }}/if/flow/initial-setup/
+          
+          🔧 REQUIRED NEXT STEPS:
+          
+          1. 🌐 Complete Authentik Initial Setup:
+             - Visit: https://auth.{{ base_domain }}/if/flow/initial-setup/
+             - Create your admin username and password
+             - Follow the setup wizard
+             
+          2. 👥 Configure Authentication (in Authentik web interface):
+             - Create user groups: admins, operators, family
+             - Add users and assign to groups
+             - Create OIDC applications for Grafana and Homarr
+             
+          3. 🚀 Deploy Services with Authentication:
+             Run: ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-services-with-auth.yml --ask-vault-pass
+          
+          📚 Documentation: ansible-docs/phase-5/deploy-authentik.md
+          
+          ⚠️  IMPORTANT: Complete steps 1-2 before running deploy-services-with-auth.yml
+
+  handlers:
+    - name: reload traefik
+      shell: docker restart traefik
+      become_user: "{{ ubuntu_primary_user }}" 

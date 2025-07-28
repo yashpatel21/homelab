@@ -4776,7 +4776,7 @@
             "uid": "fesggh8oone9se"
           },
           "editorMode": "code",
-          "expr": "adguard_running{server=\"https://adguard.radiowaves.app\"}",
+          "expr": "adguard_protection_enabled{server=\"http://adguard:3000\"}",
           "instant": true,
           "interval": "",
           "legendFormat": "{{ legend }}",
@@ -4815,6 +4815,7 @@
         "x": 4,
         "y": 120
       },
+      "hideTimeOverride": true,
       "id": 48,
       "options": {
         "colorMode": "value",
@@ -4837,13 +4838,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "(adguard_queries{server=\"https://adguard.radiowaves.app\"})",
+          "expr": "adguard_queries{server=\"http://adguard:3000\"}",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Total Queries",
+      "timeFrom": "5m",
+      "title": "Total Queries (24h)",
       "type": "stat"
     },
     {
@@ -4875,6 +4877,7 @@
         "x": 9,
         "y": 120
       },
+      "hideTimeOverride": true,
       "id": 47,
       "options": {
         "colorMode": "value",
@@ -4897,13 +4900,16 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "(adguard_queries_blocked{server=\"https://adguard.radiowaves.app\"})",
+          "exemplar": false,
+          "expr": "adguard_queries_blocked{server=\"http://adguard:3000\"}",
+          "interval": "",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Queries Blocked",
+      "timeFrom": "5m",
+      "title": "Queries Blocked (24h)",
       "type": "stat"
     },
     {
@@ -4951,6 +4957,7 @@
         "x": 14,
         "y": 120
       },
+      "hideTimeOverride": true,
       "id": 45,
       "options": {
         "colorMode": "value",
@@ -4977,14 +4984,15 @@
             "uid": "fesggh8oone9se"
           },
           "editorMode": "code",
-          "expr": "(adguard_queries_blocked{server=\"https://adguard.radiowaves.app\"}/ adguard_queries{server=\"https://adguard.radiowaves.app\"}) * 100",
+          "expr": "(adguard_queries_blocked{server=\"http://adguard:3000\"}/ adguard_queries{server=\"http://adguard:3000\"}) * 100",
           "instant": false,
           "interval": "",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "% Blocked",
+      "timeFrom": "5m",
+      "title": "% Blocked (24h)",
       "type": "stat"
     },
     {
@@ -5008,7 +5016,7 @@
               },
               {
                 "color": "#EAB839",
-                "value": 40
+                "value": 50
               },
               {
                 "color": "red",
@@ -5026,6 +5034,7 @@
         "x": 19,
         "y": 120
       },
+      "hideTimeOverride": true,
       "id": 49,
       "options": {
         "colorMode": "value",
@@ -5053,7 +5062,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(adguard_processing_time_seconds_sum{server=\"https://adguard.radiowaves.app\"}[5m])) / sum(rate(adguard_processing_time_seconds_count{server=\"https://adguard.radiowaves.app\"}[5m]))",
+          "expr": "adguard_avg_processing_time_seconds{server=\"http://adguard:3000\"} * 1000",
           "instant": true,
           "interval": "",
           "legendFormat": "",
@@ -5061,82 +5070,9 @@
           "refId": "A"
         }
       ],
+      "timeFrom": "5m",
       "title": "Processing Time",
       "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "fesggh8oone9se"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "decimals": 0,
-          "mappings": [],
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 125
-      },
-      "id": 51,
-      "maxDataPoints": 3,
-      "options": {
-        "displayLabels": [],
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "right",
-          "showLegend": true,
-          "values": [
-            "percent"
-          ]
-        },
-        "pieType": "donut",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.3.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "fesggh8oone9se"
-          },
-          "editorMode": "code",
-          "expr": "topk(10, increase(adguard_top_queried_domains{server=\"https://adguard.radiowaves.app\"}[$__range]))",
-          "instant": true,
-          "interval": "",
-          "legendFormat": "{{domain}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Top Queries by Domain",
-      "type": "piechart"
     },
     {
       "datasource": {
@@ -5165,9 +5101,10 @@
       "gridPos": {
         "h": 8,
         "w": 8,
-        "x": 8,
+        "x": 0,
         "y": 125
       },
+      "hideTimeOverride": true,
       "id": 52,
       "options": {
         "legend": {
@@ -5199,29 +5136,115 @@
             "uid": "fesggh8oone9se"
           },
           "editorMode": "code",
-          "expr": "increase(adguard_query_types{server=\"https://adguard.radiowaves.app\"}[$__range])",
+          "expr": "adguard_query_types{server=\"http://adguard:3000\"}",
           "instant": false,
           "interval": "",
           "legendFormat": "{{type}}",
           "refId": "A"
         }
       ],
-      "title": "Query Types",
+      "timeFrom": "5m",
+      "title": "Query Types (24h)",
       "type": "piechart"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "fesggh8oone9se"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
+        "w": 16,
+        "x": 8,
         "y": 125
       },
       "id": 53,
-      "libraryPanel": {
-        "name": "Upstream Response Time",
-        "uid": "cesjlwhbmox6oc"
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
-      "title": "Upstream Response Time"
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "fesggh8oone9se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (upstream) (rate(adguard_processing_time_milliseconds_sum[5m])) / sum by (upstream) (rate(adguard_processing_time_milliseconds_count[5m]))",
+          "interval": "",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Upstream Response Time",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -5265,6 +5288,7 @@
         "x": 0,
         "y": 133
       },
+      "hideTimeOverride": true,
       "id": 50,
       "options": {
         "cellHeight": "sm",
@@ -5286,7 +5310,7 @@
             "uid": "fesggh8oone9se"
           },
           "editorMode": "code",
-          "expr": "topk(15, sum by (domain) (increase(adguard_top_queried_domains[$__range])))",
+          "expr": "topk(15, sum by (domain) (adguard_top_queried_domains{server=\"http://adguard:3000\"}))",
           "format": "table",
           "instant": true,
           "interval": "30s",
@@ -5295,7 +5319,8 @@
           "refId": "A"
         }
       ],
-      "title": "Top Queries",
+      "timeFrom": "5m",
+      "title": "Top Queries (24h)",
       "transformations": [
         {
           "id": "organize",
@@ -5388,6 +5413,7 @@
         "x": 8,
         "y": 133
       },
+      "hideTimeOverride": true,
       "id": 54,
       "options": {
         "cellHeight": "sm",
@@ -5409,7 +5435,7 @@
             "uid": "fesggh8oone9se"
           },
           "editorMode": "code",
-          "expr": "topk(15, sum by (domain) (increase(adguard_top_blocked_domains[$__range])))",
+          "expr": "topk(15, sum by (domain) (increase(adguard_top_blocked_domains{server=\"http://adguard:3000\"}[$__range])))",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -5417,7 +5443,8 @@
           "refId": "A"
         }
       ],
-      "title": "Top Blocked Domains",
+      "timeFrom": "5m",
+      "title": "Top Blocked Domains (24h)",
       "transformations": [
         {
           "id": "organize",
@@ -5478,6 +5505,7 @@
         "x": 16,
         "y": 133
       },
+      "hideTimeOverride": true,
       "id": 55,
       "options": {
         "cellHeight": "sm",
@@ -5500,7 +5528,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk(15, sum by (upstream) (increase(adguard_top_upstreams{server=\"https://adguard.radiowaves.app\"}[$__range])))",
+          "expr": "adguard_top_upstreams{server=\"http://adguard:3000\"}",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -5508,7 +5536,8 @@
           "refId": "A"
         }
       ],
-      "title": "Upstreams",
+      "timeFrom": "5m",
+      "title": "Upstreams (24h)",
       "transformations": [
         {
           "id": "organize",
@@ -5728,19 +5757,20 @@
     }
   ],
   "preload": false,
+  "refresh": "1m",
   "schemaVersion": 40,
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-24h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Homelab",
   "uid": "eesjm580d6osgb",
-  "version": 16,
+  "version": 46,
   "weekStart": ""
 }

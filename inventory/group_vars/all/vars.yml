@@ -111,8 +111,7 @@ dns_failover_schedule: "* * * * *"  # Every minute for OPNsense AdGuard Home fai
 
 # Feature flag to enable/disable authentication across all services
 # Set to false during initial deployment, true after Authentik is ready
-auth_enabled: false
-
+auth_enabled: true
 # User Groups with Access Control
 homelab_user_groups:
   admins: ['yash']     # Full access to everything

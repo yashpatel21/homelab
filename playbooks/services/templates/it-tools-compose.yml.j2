@@ -30,6 +30,10 @@ services:
       - "traefik.http.routers.it-tools.rule=Host(`ittools.{{ base_domain }}`)"
       - "traefik.http.routers.it-tools.entrypoints=websecure"
       - "traefik.http.routers.it-tools.tls.certresolver={{ ssl_cert_resolver }}"
+{% if auth_enabled | default(false) %}
+      # Forward authentication to Authentik for developer tools access
+      - "traefik.http.routers.it-tools.middlewares=authentik@file"
+{% endif %}
       - "traefik.http.services.it-tools.loadbalancer.server.port=80"
       
       # Watchtower automatic updates

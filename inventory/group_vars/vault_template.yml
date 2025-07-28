@@ -49,6 +49,7 @@ vault_ntfy_token: "PLACEHOLDER_TOKEN"
 # NTFY user passwords for authentication setup
 vault_ntfy_admin_password: "REPLACE_WITH_YOUR_NTFY_ADMIN_PASSWORD"
 vault_ntfy_monitor_password: "REPLACE_WITH_YOUR_NTFY_MONITOR_PASSWORD"
+vault_ntfy_reader_password: "REPLACE_WITH_YOUR_NTFY_READER_PASSWORD"
 
 # How to get NTFY token:
 # 1. Run the NTFY deployment playbook first (it will generate a token automatically)
@@ -173,6 +174,47 @@ vault_convertx_jwt_secret: "REPLACE_WITH_YOUR_CONVERTX_JWT_SECRET"
 
 vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 
+# -----------------------------------------------------------------------------
+# AUTHENTIK SSO CONFIGURATION
+# -----------------------------------------------------------------------------
+# Authentication infrastructure for enterprise-grade SSO across all homelab services
+
+# AdGuard Home admin credentials for header injection middleware
+vault_adguard_admin_username: "admin"
+vault_adguard_admin_password: "REPLACE_WITH_YOUR_ADGUARD_ADMIN_PASSWORD"
+
+# How to get AdGuard Home admin credentials:
+# These should match your current AdGuard Home admin login credentials
+# 1. Use the same username/password you currently use to login to AdGuard Home
+# 2. If you've forgotten, you can reset them via AdGuard Home interface
+# 3. These credentials will be used for header injection authentication
+# Note: A separate monitoring user is already configured for Prometheus
+
+# Authentik infrastructure secrets
+vault_authentik_postgres_password: "REPLACE_WITH_SECURE_POSTGRES_PASSWORD"
+vault_authentik_secret_key: "REPLACE_WITH_60_CHAR_SECRET_KEY"
+
+# How to generate Authentik secrets:
+# 1. PostgreSQL password: Use a strong password (20+ characters)
+#    Example: openssl rand -base64 32
+# 2. Secret key: Must be exactly 50+ characters for security
+#    Example: python3 -c 'import secrets; print(secrets.token_hex(32))'
+# Note: Admin user/password will be set manually via https://auth.radiowaves.app/if/flow/initial-setup/
+
+# Authentik OIDC client credentials
+vault_authentik_grafana_client_id: "grafana"
+vault_authentik_grafana_client_secret: "REPLACE_WITH_GRAFANA_OIDC_SECRET"
+vault_authentik_homarr_client_id: "homarr"
+vault_authentik_homarr_client_secret: "REPLACE_WITH_HOMARR_OIDC_SECRET"
+vault_authentik_nextcloud_client_id: "nextcloud"
+vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
+
+# How to generate OIDC client secrets:
+# Run: openssl rand -base64 48
+# Generate a unique secret for each service
+# These will be configured in Authentik web interface during setup
+# Keep these secrets secure - they authenticate your services to Authentik
+
 # =============================================================================
 # EXAMPLE COMPLETED VAULT FILE
 # =============================================================================
@@ -187,6 +229,7 @@ vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 # vault_ntfy_token: "tk_abc123def456..."
 # vault_ntfy_admin_password: "your-secure-admin-password"
 # vault_ntfy_monitor_password: "your-secure-monitor-password"
+# vault_ntfy_reader_password: "your-secure-reader-password"
 # vault_proxmox_api_token: "PVEAPIToken=homarr-api@pve!homarr=abc123def456..."
 # vault_homarr_encryption_key: "abc123def456789abcdef123456789abcdef123456789abcdef123456789abc"
 # vault_adguard_monitoring_username: "monitoring"
@@ -199,6 +242,16 @@ vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 # vault_nextcloud_borg_backup_password: "your-borg-backup-encryption-password"
 # vault_convertx_jwt_secret: "your-base64-encoded-jwt-secret"
 # vault_letsencrypt_email: "your-email@example.com"
+# vault_adguard_admin_username: "admin"
+# vault_adguard_admin_password: "your-current-adguard-admin-password"
+# vault_authentik_postgres_password: "your-secure-postgres-password"
+# vault_authentik_secret_key: "your-64-character-hex-secret-key"
+# vault_authentik_grafana_client_id: "grafana"
+# vault_authentik_grafana_client_secret: "your-base64-grafana-oidc-secret"
+# vault_authentik_homarr_client_id: "homarr"
+# vault_authentik_homarr_client_secret: "your-base64-homarr-oidc-secret"
+# vault_authentik_nextcloud_client_id: "nextcloud"
+# vault_authentik_nextcloud_client_secret: "your-base64-nextcloud-oidc-secret"
 #
 # =============================================================================
 

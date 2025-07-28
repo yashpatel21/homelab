@@ -51,6 +51,10 @@ services:
       - "traefik.http.routers.adguard.rule=Host(`adguard.{{ base_domain }}`)"
       - "traefik.http.routers.adguard.entrypoints=websecure"
       - "traefik.http.routers.adguard.tls.certresolver={{ ssl_cert_resolver }}"
+{% if auth_enabled | default(false) %}
+      # Header injection authentication - Authentik SSO with automatic Basic Auth
+      - "traefik.http.routers.adguard.middlewares=adguard-auth-chain@file"
+{% endif %}
       - "traefik.http.services.adguard.loadbalancer.server.port=3000"
       
       # Watchtower automatic updates

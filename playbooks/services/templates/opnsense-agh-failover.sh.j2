@@ -27,7 +27,7 @@ LOCK_FILE="/tmp/agh_failover.lock"
 STATUS_FILE="/tmp/agh_current_status"
 
 # NTFY Configuration
-NTFY_URL="https://ntfy.{{ base_domain }}"
+NTFY_URL="http://{{ ubuntu_server_ip }}:8082"
 TOPIC="opnsense-alerts"
 NTFY_TOKEN="{{ vault_ntfy_token | default('PLACEHOLDER_TOKEN') }}"
 

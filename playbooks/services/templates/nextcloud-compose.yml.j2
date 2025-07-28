@@ -5,7 +5,8 @@
 # 
 # This Docker Compose file deploys Nextcloud All-in-One with:
 # - Nextcloud AIO master container for management and deployment
-# - Traefik integration via dynamic configuration
+# - AIO admin accessible via IP:port
+# - NextCloud instance will be configured for OIDC integration
 # - Persistent data volumes for configuration
 # - Watchtower labels for automatic updates
 # - Homelab network integration
@@ -36,10 +37,12 @@ services:
       - APACHE_IP_BINDING=0.0.0.0
       - APACHE_ADDITIONAL_NETWORK={{ homelab_network_name }}
       - NEXTCLOUD_DATADIR=/storage/nextcloud  # Host path where AIO will store data
-      # Optional: Skip domain validation if using custom domains
-      # - SKIP_DOMAIN_VALIDATION=true
-      # Optional: Set timezone
+      - SKIP_DOMAIN_VALIDATION=true
       - TZ={{ timezone | default('UTC') }}
+{% if auth_enabled | default(false) %}
+      # Allow local remote servers for Authentik OIDC (same host)
+      - NEXTCLOUD_TRUSTED_CACERTS_DIR=/etc/ssl/certs
+{% endif %}
     labels:
       # Watchtower automatic updates
       - "com.centurylinklabs.watchtower.enable=true"

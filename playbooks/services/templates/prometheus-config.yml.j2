@@ -44,10 +44,16 @@ scrape_configs:
   # Uptime Kuma service monitoring metrics
   - job_name: 'uptime-kuma'
     static_configs:
-      - targets: ['uptime.{{ base_domain }}']
-    scheme: https
+      - targets: ['uptime-kuma:3001']
+    scheme: http
     metrics_path: '/metrics'
     scrape_interval: 30s
+{% if not auth_enabled | default(false) %}
+    # Basic auth required when Uptime Kuma built-in authentication is enabled
     basic_auth:
       username: 'admin'
-      password: '{{ vault_uptime_kuma_admin_password }}' 
+      password: '{{ vault_uptime_kuma_admin_password }}'
+{% else %}
+    # No auth needed when Uptime Kuma built-in auth is disabled (public /metrics endpoint)
+    # Note: Uptime Kuma auth must be manually disabled in settings after enabling SSO
+{% endif %} 

@@ -80,6 +80,20 @@ services:
       - "traefik.http.routers.dashboard.rule=Host(`traefik.{{ base_domain }}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls.certresolver={{ ssl_cert_resolver }}"
+{% if auth_enabled | default(false) %}
+      # Forward authentication to Authentik for dashboard access
+      - "traefik.http.routers.dashboard.middlewares=authentik@file"
+      - "traefik.http.routers.dashboard.priority=10"
+      
+      - "traefik.http.routers.authentik-outpost.rule=Host(`auth.{{ base_domain }}`) || HostRegexp(`{subdomain:[a-z0-9-]+}.{{ base_domain }}`) && PathPrefix(`/outpost.goauthentik.io/`)"
+      - "traefik.http.routers.authentik-outpost.entrypoints=websecure"
+      - "traefik.http.routers.authentik-outpost.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.routers.authentik-outpost.priority=100"
+      - "traefik.http.routers.authentik-outpost.service=authentik-outpost"
+      - "traefik.http.services.authentik-outpost.loadbalancer.server.port=9000"
+{% else %}
+      - "traefik.http.routers.dashboard.priority=10"
+{% endif %}
       - "traefik.http.routers.dashboard.service=api@internal"
 
   whoami:
@@ -99,6 +113,10 @@ services:
       - "traefik.http.routers.whoami.rule=Host(`whoami.{{ base_domain }}`)"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls.certresolver={{ ssl_cert_resolver }}"
+{% if auth_enabled | default(false) %}
+      # Forward authentication to Authentik for SSL test service access
+      - "traefik.http.routers.whoami.middlewares=authentik@file"
+{% endif %}
 
 networks:
   {{ homelab_network_name }}:

@@ -1,0 +1,294 @@
+---
+# =============================================================================
+# DEPLOY SERVICES WITH AUTHENTICATION PLAYBOOK
+# =============================================================================
+# 
+# This playbook redeploys selected homelab services with authentication integration.
+# 
+# Interactive service selection allows choosing which services to enable 
+# authentication for based on complexity and manual configuration requirements.
+#
+# Prerequisites:
+# - auth_enabled: true in group_vars/all/vars.yml
+# - Authentik infrastructure deployed (deploy-authentik.yml)
+# - Authentik manually configured (users, groups, OIDC applications)
+# - Manual prerequisites completed (Uptime Kuma auth disabled, etc.)
+#
+# What this playbook does:
+# - Interactive selection of services to enable authentication for
+# - Full redeployment of selected services with auth_enabled=true
+# - Updates all configuration files (compose, configs, scripts)
+# - Provides post-deployment verification and next steps
+# =============================================================================
+
+- name: Deploy Services with Authentication Integration
+  hosts: ubuntu_servers
+  become: yes
+  gather_facts: yes
+  vars:
+    # Service definitions for interactive redeployment
+    authentik_services:
+      - name: "Traefik Dashboard"
+        playbook: "deploy-traefik.yml"
+        description: "Dashboard and whoami service forward authentication"
+        auth_type: "Forward Auth"
+        complexity: "Simple"
+        manual_steps: "None - automatic"
+        
+      - name: "AdGuard Home"
+        playbook: "deploy-adguard.yml"
+        description: "Header injection authentication with monitoring preservation"
+        auth_type: "Header Injection"
+        complexity: "Advanced"
+        manual_steps: "None - automatic"
+        
+      - name: "NTFY Notifications"
+        playbook: "deploy-ntfy.yml"
+        description: "Forward authentication for notification service"
+        auth_type: "Forward Auth"
+        complexity: "Simple"
+        manual_steps: "None - automatic"
+        
+      - name: "Uptime Kuma Monitoring"
+        playbook: "deploy-uptime-kuma.yml"
+        description: "Forward authentication (requires manual auth disable)"
+        auth_type: "Forward Auth + Manual"
+        complexity: "Medium"
+        manual_steps: "Disable built-in auth in settings after deployment"
+        
+      - name: "Homarr Dashboard"
+        playbook: "deploy-homarr.yml"
+        description: "Native OIDC integration"
+        auth_type: "Native OIDC"
+        complexity: "Simple"
+        manual_steps: "None - automatic OIDC"
+        
+      - name: "Prometheus + Grafana"
+        playbook: "deploy-prometheus-grafana.yml"
+        description: "Prometheus forward auth + Grafana native OIDC"
+        auth_type: "Dual (Forward Auth + OIDC)"
+        complexity: "Medium"
+        manual_steps: "None - automatic"
+        
+      - name: "IT Tools"
+        playbook: "deploy-it-tools.yml"
+        description: "Forward authentication for developer tools"
+        auth_type: "Forward Auth"
+        complexity: "Simple"
+        manual_steps: "None - automatic"
+        
+      - name: "ConvertX File Conversion"
+        playbook: "deploy-convertx.yml"
+        description: "Environment variable authentication bypass"
+        auth_type: "Environment Variable Bypass"
+        complexity: "High (Testing Required)"
+        manual_steps: "Verify JWT bypass functionality works"
+        
+      - name: "NextCloud AIO"
+        playbook: "deploy-nextcloud.yml"
+        description: "Hybrid authentication (AIO admin + manual OIDC)"
+        auth_type: "Hybrid (Forward Auth + Manual OIDC)"
+        complexity: "Very High"
+        manual_steps: "Manual OIDC configuration in NextCloud admin panel"
+
+    # Services that will be redeployed
+    selected_services: []
+
+  pre_tasks:
+    - name: "🔍 Verify Prerequisites"
+      block:
+        - name: Check auth_enabled setting
+          fail:
+            msg: |
+              ❌ ERROR: auth_enabled must be set to 'true' in group_vars/all/vars.yml
+              
+              Please edit inventory/group_vars/all/vars.yml and set:
+              auth_enabled: true
+              
+              Then re-run this playbook.
+          when: not (auth_enabled | default(false) | bool)
+          
+        - name: Verify Authentik is accessible
+          uri:
+            url: "https://auth.{{ base_domain }}/if/flow/initial-setup/"
+            method: GET
+            timeout: 10
+            validate_certs: no
+          register: authentik_check
+          failed_when: false
+          
+        - name: Check Authentik accessibility
+          fail:
+            msg: |
+              ❌ ERROR: Authentik infrastructure not accessible
+              
+              Please ensure:
+              1. Authentik infrastructure is deployed: ansible-playbook deploy-authentik.yml
+              2. Authentik is configured via web interface
+              3. DNS override for auth.{{ base_domain }} is working
+              
+              Current status: {{ authentik_check.status | default('Connection failed') }}
+          when: authentik_check.status != 200
+
+        - name: Display prerequisites status
+          debug:
+            msg: |
+              ✅ Prerequisites Check Passed
+              
+              📋 Configuration Status:
+              - auth_enabled: {{ auth_enabled }}
+              - base_domain: {{ base_domain }}
+              - Authentik Status: {{ authentik_check.status }}
+              
+              🚀 Ready to redeploy services with authentication
+
+  tasks:
+    # ==========================================================================
+    # INTERACTIVE SERVICE SELECTION
+    # ==========================================================================
+    - name: "🎯 Interactive Service Selection"
+      block:
+        - name: Display service overview
+          debug:
+            msg: |
+              
+              🔐 SERVICE AUTHENTICATION INTEGRATION
+              ===================================
+              
+              This playbook will redeploy selected services with authentication integration.
+              Each service will be updated with new authentication configuration and restarted.
+              
+              📋 Available Services:
+              {% for service in authentik_services %}
+              {{ loop.index }}. {{ service.name }}
+                 Type: {{ service.auth_type }}
+                 Complexity: {{ service.complexity }}
+                 Manual Steps: {{ service.manual_steps }}
+              {% endfor %}
+              
+              You will be prompted to deploy each service individually.
+              Data persistence is preserved - only authentication configuration changes.
+
+        - name: Prompt for service deployment
+          pause:
+            prompt: |
+              
+              🚀 Deploy {{ item.name }}?
+              
+              Description: {{ item.description }}
+              Authentication Type: {{ item.auth_type }}
+              Complexity: {{ item.complexity }}
+              Manual Steps Required: {{ item.manual_steps }}
+              
+              Deploy this service with authentication? [y/N]
+          register: service_prompt
+          loop: "{{ authentik_services }}"
+          loop_control:
+            label: "{{ item.name }}"
+
+        - name: Build selected services list
+          set_fact:
+            selected_services: "{{ selected_services + [item.item] }}"
+          when: item.user_input | lower | regex_search('^y(es)?$')
+          loop: "{{ service_prompt.results }}"
+          loop_control:
+            label: "{{ item.item.name }}"
+
+        - name: Display deployment plan
+          debug:
+            msg: |
+              
+              📋 DEPLOYMENT PLAN
+              ==================
+              
+              Selected Services ({{ selected_services | length }}):
+              {% for service in selected_services %}
+              ✅ {{ service.name }} ({{ service.auth_type }})
+              {% endfor %}
+              
+              {% if selected_services | length == 0 %}
+              ⚠️  No services selected for authentication integration.
+              Exiting without changes.
+              {% endif %}
+
+        - name: Exit if no services selected
+          meta: end_play
+          when: selected_services | length == 0
+
+    # ==========================================================================
+    # SERVICE REDEPLOYMENT WITH AUTHENTICATION
+    # ==========================================================================
+    - name: "🔄 Redeploy Selected Services with Authentication"
+      block:
+        - name: Redeploy service with authentication
+          shell: |
+            cd /Users/yash/Yash/Projects/homelab
+            exec ansible-playbook -i inventory/homelab.yml playbooks/services/{{ item.playbook }} --ask-vault-pass --extra-vars "skip_verification=true" < /dev/tty > /dev/tty 2>&1
+          loop: "{{ selected_services }}"
+          loop_control:
+            label: "Redeploying {{ item.name }}"
+          when: selected_services | length > 0
+          delegate_to: localhost
+          become: no
+
+        - name: Display service redeployment summary
+          debug:
+            msg: |
+              
+              ✅ SERVICE REDEPLOYMENT COMPLETE
+              ===============================
+              
+              {% if selected_services | length > 0 %}
+              Redeployed Services:
+              {% for service in selected_services %}
+              ✅ {{ service.name }} - Authentication {{ service.auth_type }} enabled
+              {% endfor %}
+              
+              🔧 All services now have authentication configuration ready.
+              🔄 Containers restarted with new authentication settings.
+              💾 Data persistence maintained throughout deployment.
+              📋 Config files (Prometheus, etc.) updated with auth_enabled=true.
+              {% endif %}
+
+    # ==========================================================================
+    # POST-DEPLOYMENT VERIFICATION AND NEXT STEPS
+    # ==========================================================================
+    - name: "📋 Deployment Summary and Next Steps"
+      debug:
+        msg: |
+          
+          🎉 SERVICE AUTHENTICATION INTEGRATION COMPLETE
+          =============================================
+          
+          📊 DEPLOYMENT SUMMARY:
+          
+          🔄 Services Updated with Authentication:
+          {% for service in selected_services %}
+          ✅ {{ service.name }}
+             - Type: {{ service.auth_type }}
+             - Manual Steps: {{ service.manual_steps }}
+          {% endfor %}
+          
+          🔧 REMAINING MANUAL CONFIGURATION:
+          
+          {% for service in selected_services %}
+          {% if 'Manual' in service.manual_steps %}
+          🔹 {{ service.name }}: {{ service.manual_steps }}
+          {% endif %}
+          {% endfor %}
+          
+          {% for service in selected_services %}
+          {% if 'Testing Required' in service.complexity %}
+          🧪 {{ service.name }}: Verify {{ service.auth_type }} functionality
+          {% endif %}
+          {% endfor %}
+          
+          🔗 Next Steps:
+          1. Test authentication for each service
+          2. Complete any remaining manual configuration steps
+          3. Configure user access permissions in Authentik
+          4. Verify monitoring and metrics still work
+          
+          📚 Documentation: ansible-docs/phase-5/authentik-implementation-guide.md
+          
+          🌐 Access your authenticated services through https://auth.{{ base_domain }} 

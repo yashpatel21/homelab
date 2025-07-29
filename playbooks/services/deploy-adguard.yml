@@ -386,22 +386,51 @@
       tags: 
         - failover
 
-    - name: "Failover - Check if DNS failover cron job already exists"
-      shell: "crontab -l | grep -F 'agh_failover.sh' || echo 'not found'"
-      register: failover_cron_check
-      changed_when: false
-      failed_when: false
+    - name: "Failover - Create configd actions directory"
+      file:
+        path: "/usr/local/opnsense/service/conf/actions.d"
+        state: directory
+        owner: "root"
+        group: "wheel"
+        mode: '0755'
       when: has_ntfy_token
       tags: 
         - failover
 
-    - name: "Failover - Configure failover script cron job"
-      shell: |
-        # Get current crontab, add our job if not present, then install new crontab
-        (crontab -l 2>/dev/null || echo ""; echo "*	*	*	*	*	{{ script_path }} > /dev/null 2>&1") | crontab -
+    - name: "Failover - Create configd action for DNS failover script"
+      copy:
+        dest: "/usr/local/opnsense/service/conf/actions.d/actions_agh-failover.conf"
+        content: |
+          [run]
+          command:{{ script_path }}
+          parameters:
+          type:script
+          message:Running AdGuard Home DNS failover check
+          description:AdGuard Home DNS failover monitoring
+        owner: "root"
+        group: "wheel"
+        mode: '0644'
+      when: has_ntfy_token
+      register: action_created
+      tags: 
+        - failover
+
+    - name: "Failover - Restart configd service"
+      service:
+        name: configd
+        state: restarted
       when: 
         - has_ntfy_token
-        - "'not found' in failover_cron_check.stdout"
+        - action_created.changed
+      tags: 
+        - failover
+
+    - name: "Failover - Reload configd action"
+      shell: "configctl agh-failover reload"
+      when: 
+        - has_ntfy_token
+        - action_created.changed
+      failed_when: false
       tags: 
         - failover
 
@@ -420,8 +449,9 @@
           🔄 OPNSENSE DNS FAILOVER SCRIPT STATUS:
           {% if has_ntfy_token %}
           ✅ DNS failover script deployed
-          ✅ Cron job configured (every minute)
+          ✅ Configd action configured for persistent cron jobs
           📁 Script location: {{ script_path }}
+          📋 Action file: /usr/local/opnsense/service/conf/actions.d/actions_agh-failover.conf
           
           🧪 Script Test Results:
           {% if failover_script_test is defined and failover_script_test is not skipped %}
@@ -436,12 +466,18 @@
           
           💡 Check NTFY at https://ntfy.{{ base_domain }}/opnsense-alerts for failover notifications
           
-          🔧 Manual OPNsense DNS Configuration Required:
-          1. Services → Unbound DNS → Query Forwarding
-          2. Add DNS forward: Domain: blank, Server: {{ ubuntu_server_ip }}, Port: 53
-          3. Apply changes
+          🔧 Manual OPNsense Configuration Required:
+          1. **DNS Configuration**: Services → Unbound DNS → Query Forwarding
+             • Add DNS forward: Domain: blank, Server: {{ ubuntu_server_ip }}, Port: 53
+             • Apply changes
           
-          See documentation for complete OPNsense DNS configuration steps.
+          2. **Cron Job Setup**: System → Settings → Cron
+             • Click "+" to add new job
+             • Command: "AdGuard Home DNS failover monitoring"
+             • Schedule: Every minute (* * * * *)
+             • Save changes
+          
+          See documentation for complete configuration steps and verification instructions.
           {% else %}
           ❌ Script deployment skipped - NTFY token not available
           💡 Deploy NTFY service first and add token to vault

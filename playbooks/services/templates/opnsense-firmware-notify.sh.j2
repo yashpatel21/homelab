@@ -4,9 +4,21 @@ NTFY_URL="http://{{ ubuntu_server_ip }}:8082"
 TOPIC="opnsense-alerts"
 NTFY_TOKEN="{{ vault_ntfy_token | default('PLACEHOLDER_TOKEN') }}"
 
+# Check what type of update check to perform
+CHECK_TYPE="${1:-both}"  # Default to both if no parameter provided
+
 # Function to log messages (sends to stderr so they get logged by cron)
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >&2
+}
+
+# Function to show usage
+show_usage() {
+    echo "Usage: $0 [minor|major|both]"
+    echo "  minor - Check only for minor firmware updates"
+    echo "  major - Check only for major version upgrades"  
+    echo "  both  - Check for both (default)"
+    exit 1
 }
 
 # Function to get latest stable version from GitHub
@@ -46,66 +58,81 @@ version_greater() {
     fi
 }
 
-log_msg "Starting OPNsense update check"
+log_msg "Starting OPNsense update check (type: $CHECK_TYPE)"
+
+# Validate parameters
+case "$CHECK_TYPE" in
+    minor|major|both)
+        ;;
+    *)
+        log_msg "ERROR: Invalid parameter '$CHECK_TYPE'"
+        show_usage
+        ;;
+esac
 
 # =============================================================================
 # CHECK FOR REGULAR FIRMWARE UPDATES
 # =============================================================================
 
-log_msg "Checking for regular firmware updates..."
+if [ "$CHECK_TYPE" = "minor" ] || [ "$CHECK_TYPE" = "both" ]; then
+    log_msg "Checking for regular firmware updates..."
 
-if /usr/local/opnsense/scripts/firmware/check.sh > /tmp/fw_check.out 2>&1; then
-    if grep -q "Your packages are up to date" /tmp/fw_check.out; then
-        log_msg "No firmware updates available"
-    else
-        if grep -qE "(upgrade.*available|newer.*version|packages.*will be.*upgraded)" /tmp/fw_check.out; then
-            log_msg "Regular firmware updates detected"
-            
-            MESSAGE="🔒 OPNsense updates available and will be auto-installed at 4 AM tonight.
+    if /usr/local/opnsense/scripts/firmware/check.sh > /tmp/fw_check.out 2>&1; then
+        if grep -q "Your packages are up to date" /tmp/fw_check.out; then
+            log_msg "No firmware updates available"
+        else
+            if grep -qE "(upgrade.*available|newer.*version|packages.*will be.*upgraded)" /tmp/fw_check.out; then
+                log_msg "Regular firmware updates detected"
+                
+                MESSAGE="🔒 OPNsense updates available and will be auto-installed at 4 AM tonight.
 
 Check time: $(date '+%Y-%m-%d %H:%M')"
-            
-            if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
-                 -H "Title: OPNsense Auto-Update Scheduled" \
-                 -H "Priority: default" \
-                 -H "Tags: opnsense,security,update" \
-                 -d "$MESSAGE" \
-                 "$NTFY_URL/$TOPIC" >/dev/null 2>&1; then
-                log_msg "Regular update notification sent"
+                
+                if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
+                     -H "Title: OPNsense Auto-Update Scheduled" \
+                     -H "Priority: default" \
+                     -H "Tags: opnsense,security,update" \
+                     -d "$MESSAGE" \
+                     "$NTFY_URL/$TOPIC" >/dev/null 2>&1; then
+                    log_msg "Regular update notification sent"
+                else
+                    log_msg "ERROR: Failed to send regular update notification"
+                fi
             else
-                log_msg "ERROR: Failed to send regular update notification"
+                log_msg "No regular updates detected"
             fi
-        else
-            log_msg "No regular updates detected"
         fi
+    else
+        log_msg "ERROR: Firmware check script failed"
     fi
 else
-    log_msg "ERROR: Firmware check script failed"
+    log_msg "Skipping minor firmware update check (type: $CHECK_TYPE)"
 fi
 
 # =============================================================================
 # CHECK FOR MAJOR VERSION UPGRADES
 # =============================================================================
 
-log_msg "Checking for major version upgrades..."
+if [ "$CHECK_TYPE" = "major" ] || [ "$CHECK_TYPE" = "both" ]; then
+    log_msg "Checking for major version upgrades..."
 
-# Get current installed version
-CURRENT_VERSION=$(opnsense-version | cut -d'_' -f1 | sed 's/OPNsense //')
-CURRENT_MAJOR=$(echo $CURRENT_VERSION | cut -d'.' -f1-2)
+    # Get current installed version
+    CURRENT_VERSION=$(opnsense-version | cut -d'_' -f1 | sed 's/OPNsense //')
+    CURRENT_MAJOR=$(echo $CURRENT_VERSION | cut -d'.' -f1-2)
 
-# Get latest version from GitHub
-LATEST_VERSION=$(get_latest_version_from_github)
+    # Get latest version from GitHub
+    LATEST_VERSION=$(get_latest_version_from_github)
 
-if [ -n "$LATEST_VERSION" ]; then
-    LATEST_MAJOR=$(echo $LATEST_VERSION | cut -d'.' -f1-2)
-    
-    log_msg "Current: $CURRENT_VERSION, Latest: $LATEST_VERSION"
-    
-    # Check if a major upgrade is available
-    if version_greater $LATEST_MAJOR $CURRENT_MAJOR; then
-        log_msg "Major version upgrade available: $CURRENT_MAJOR -> $LATEST_MAJOR"
+    if [ -n "$LATEST_VERSION" ]; then
+        LATEST_MAJOR=$(echo $LATEST_VERSION | cut -d'.' -f1-2)
         
-        MESSAGE="🚨 MAJOR OPNsense Upgrade Available!
+        log_msg "Current: $CURRENT_VERSION, Latest: $LATEST_VERSION"
+        
+        # Check if a major upgrade is available
+        if version_greater $LATEST_MAJOR $CURRENT_MAJOR; then
+            log_msg "Major version upgrade available: $CURRENT_MAJOR -> $LATEST_MAJOR"
+            
+            MESSAGE="🚨 MAJOR OPNsense Upgrade Available!
 
 Current: OPNsense $CURRENT_VERSION
 Available: $LATEST_VERSION
@@ -116,22 +143,25 @@ Available: $LATEST_VERSION
 
 Backup config: System → Configuration → Backups
 Update: System → Firmware → Updates"
-        
-        if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
-             -H "Title: 🚨 OPNsense MAJOR Upgrade Available" \
-             -H "Priority: high" \
-             -H "Tags: opnsense,major-upgrade,warning" \
-             -d "$MESSAGE" \
-             "$NTFY_URL/$TOPIC" >/dev/null 2>&1; then
-            log_msg "Major upgrade notification sent"
+            
+            if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
+                 -H "Title: 🚨 OPNsense MAJOR Upgrade Available" \
+                 -H "Priority: high" \
+                 -H "Tags: opnsense,major-upgrade,warning" \
+                 -d "$MESSAGE" \
+                 "$NTFY_URL/$TOPIC" >/dev/null 2>&1; then
+                log_msg "Major upgrade notification sent"
+            else
+                log_msg "ERROR: Failed to send major upgrade notification"
+            fi
         else
-            log_msg "ERROR: Failed to send major upgrade notification"
+            log_msg "No major version upgrade available (running $CURRENT_MAJOR, latest is $LATEST_MAJOR)"
         fi
     else
-        log_msg "No major version upgrade available (running $CURRENT_MAJOR, latest is $LATEST_MAJOR)"
+        log_msg "ERROR: Could not fetch latest version from GitHub"
     fi
 else
-    log_msg "ERROR: Could not fetch latest version from GitHub"
+    log_msg "Skipping major version upgrade check (type: $CHECK_TYPE)"
 fi
 
 # Cleanup

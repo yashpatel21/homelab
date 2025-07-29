@@ -100,7 +100,8 @@ services:
 update_check_schedules:
   ubuntu_vm: "0 12 * * 0"      # Weekly on Sundays at 12pm
   proxmox: "0 12 * * 0"        # Weekly on Sundays at 12pm
-  opnsense: "0 18 * * *"       # Daily at 6pm
+  opnsense_minor: "0 18 * * *" # Daily at 6pm (minor firmware updates)
+  opnsense_major: "0 12 * * 0" # Weekly on Sundays at 12pm (major version upgrades)
   
 # DNS failover monitoring schedule
 dns_failover_schedule: "* * * * *"  # Every minute for OPNsense AdGuard Home failover

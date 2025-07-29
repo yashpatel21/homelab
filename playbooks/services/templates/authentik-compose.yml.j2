@@ -92,13 +92,16 @@ services:
       # Trust proxy headers for proper IP detection
       AUTHENTIK_WEB__TRUSTED_PROXIES: "172.20.0.0/16,{{ ubuntu_server_ip }}/32"
       
-      # Email Configuration (optional - can be configured via web interface)
-      # AUTHENTIK_EMAIL__HOST: smtp.gmail.com
-      # AUTHENTIK_EMAIL__PORT: 587
-      # AUTHENTIK_EMAIL__USERNAME: your-email@gmail.com
-      # AUTHENTIK_EMAIL__PASSWORD: your-app-password
-      # AUTHENTIK_EMAIL__USE_TLS: "true"
-      # AUTHENTIK_EMAIL__FROM: "Homelab SSO <your-email@gmail.com>"
+      # Email Configuration for password recovery and notifications
+{% if vault_authentik_email_host is defined and vault_authentik_email_username is defined and vault_authentik_email_password is defined %}
+      AUTHENTIK_EMAIL__HOST: "{{ vault_authentik_email_host }}"
+      AUTHENTIK_EMAIL__PORT: "{{ vault_authentik_email_port | default('587') }}"
+      AUTHENTIK_EMAIL__USERNAME: "{{ vault_authentik_email_username }}"
+      AUTHENTIK_EMAIL__PASSWORD: "{{ vault_authentik_email_password }}"
+      AUTHENTIK_EMAIL__USE_TLS: "true"
+      AUTHENTIK_EMAIL__USE_SSL: "false"
+      AUTHENTIK_EMAIL__FROM: "authentik@{{ base_domain }}"
+{% endif %}
       
       # Logging Configuration
       AUTHENTIK_LOG_LEVEL: "info"
@@ -109,6 +112,7 @@ services:
     volumes:
       - "{{ data_directory }}/{{ authentik_service_name }}/media:/media"
       - "{{ data_directory }}/{{ authentik_service_name }}/certs:/certs"
+      - "{{ data_directory }}/{{ authentik_service_name }}/custom-templates:/templates"
     ports:
       # Internal ports for container communication
       - "127.0.0.1:9000:9000"  # HTTP (for Traefik forward auth)
@@ -166,6 +170,17 @@ services:
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
       AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
+
+      # Email Configuration for password recovery and notifications
+{% if vault_authentik_email_host is defined and vault_authentik_email_username is defined and vault_authentik_email_password is defined %}
+      AUTHENTIK_EMAIL__HOST: "{{ vault_authentik_email_host }}"
+      AUTHENTIK_EMAIL__PORT: "{{ vault_authentik_email_port | default('587') }}"
+      AUTHENTIK_EMAIL__USERNAME: "{{ vault_authentik_email_username }}"
+      AUTHENTIK_EMAIL__PASSWORD: "{{ vault_authentik_email_password }}"
+      AUTHENTIK_EMAIL__USE_TLS: "true"
+      AUTHENTIK_EMAIL__USE_SSL: "false"
+      AUTHENTIK_EMAIL__FROM: "authentik@{{ base_domain }}"
+{% endif %}      
       
       # Logging Configuration
       AUTHENTIK_LOG_LEVEL: "info"
@@ -176,6 +191,7 @@ services:
       # Shared volumes with server
       - "{{ data_directory }}/{{ authentik_service_name }}/media:/media"
       - "{{ data_directory }}/{{ authentik_service_name }}/certs:/certs"
+      - "{{ data_directory }}/{{ authentik_service_name }}/custom-templates:/templates"
     networks:
       - homelab
     depends_on:

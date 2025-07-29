@@ -55,6 +55,9 @@
               - vault_authentik_secret_key
               - vault_authentik_grafana_client_secret
               - vault_authentik_homarr_client_secret
+              - vault_authentik_email_host
+              - vault_authentik_email_username  
+              - vault_authentik_email_password
               
               Note: Admin user/password will be set manually via initial setup.
           when: >
@@ -63,7 +66,10 @@
             vault_authentik_postgres_password is not defined or
             vault_authentik_secret_key is not defined or
             vault_authentik_grafana_client_secret is not defined or
-            vault_authentik_homarr_client_secret is not defined
+            vault_authentik_homarr_client_secret is not defined or
+            vault_authentik_email_host is not defined or
+            vault_authentik_email_username is not defined or
+            vault_authentik_email_password is not defined
 
         - name: Display prerequisites status
           debug:
@@ -146,6 +152,37 @@
     # ==========================================================================
     - name: "🚀 Deploy Authentik Infrastructure"
       block:
+        - name: Configure system settings for Redis
+          block:
+            - name: Set memory overcommit for Redis (runtime)
+              sysctl:
+                name: vm.overcommit_memory
+                value: '1'
+                state: present
+                reload: yes
+              become: yes
+
+            - name: Persist memory overcommit setting
+              lineinfile:
+                path: /etc/sysctl.conf
+                line: 'vm.overcommit_memory = 1'
+                state: present
+                backup: yes
+              become: yes
+
+            - name: Display memory overcommit status
+              debug:
+                msg: |
+                  
+                  ⚙️ SYSTEM CONFIGURATION FOR REDIS
+                  ================================
+                  
+                  ✅ Memory overcommit enabled (vm.overcommit_memory = 1)
+                  
+                  📝 This setting allows Redis to perform background saves without
+                     memory allocation errors. Redis uses fork() for saves which
+                     temporarily doubles memory usage.
+
         - name: Create Authentik directories
           file:
             path: "{{ item }}"
@@ -159,15 +196,76 @@
             - "{{ data_directory }}/{{ authentik_service_name }}/redis"
             - "{{ data_directory }}/{{ authentik_service_name }}/media"
             - "{{ data_directory }}/{{ authentik_service_name }}/certs"
+            - "{{ data_directory }}/{{ authentik_service_name }}/custom-templates"
+
+        - name: Deploy custom email templates
+          copy:
+            src: authentik-simple-recovery.html
+            dest: "{{ data_directory }}/{{ authentik_service_name }}/custom-templates/simple-recovery.html"
+            owner: "{{ ubuntu_primary_user }}"
+            group: "{{ ubuntu_primary_user }}"
+            mode: '0644'
+            backup: yes
+
+        - name: Display custom template deployment status
+          debug:
+            msg: |
+              
+              📧 CUSTOM EMAIL TEMPLATE DEPLOYED
+              ================================
+              
+              ✅ Template: simple-recovery.html
+              📂 Location: {{ data_directory }}/{{ authentik_service_name }}/custom-templates/
+              🎯 Purpose: Clean email template for password recovery without embedded images
+              
+              📋 Next Steps:
+              1. Configure email stage to use this template: "simple-recovery.html"
+              2. This resolves MIMEImage serialization errors with Resend
 
         - name: Fix Redis directory permissions
-          file:
-            path: "{{ data_directory }}/{{ authentik_service_name }}/redis"
-            state: directory
-            owner: '999'
-            group: '999'
-            mode: '0755'
-            recurse: yes
+          block:
+            - name: Stop existing Redis container to fix permissions
+              shell: |
+                docker stop authentik_redis 2>/dev/null || true
+                docker rm authentik_redis 2>/dev/null || true
+              become_user: "{{ ubuntu_primary_user }}"
+              ignore_errors: yes
+
+            - name: Set Redis directory ownership (initial)
+              file:
+                path: "{{ data_directory }}/{{ authentik_service_name }}/redis"
+                state: directory
+                owner: '999'
+                group: '999'
+                mode: '0755'
+              become: yes
+
+            - name: Ensure all Redis files have correct ownership
+              shell: |
+                # Ensure the directory and all contents are owned by Redis user (999:999)
+                chown -R 999:999 "{{ data_directory }}/{{ authentik_service_name }}/redis"
+                
+                # Fix any permission issues on existing dump files
+                find "{{ data_directory }}/{{ authentik_service_name }}/redis" -type f -exec chmod 660 {} \;
+                find "{{ data_directory }}/{{ authentik_service_name }}/redis" -type d -exec chmod 755 {} \;
+                
+                # Display final permissions for verification
+                echo "=== Redis Directory Permissions ==="
+                ls -la "{{ data_directory }}/{{ authentik_service_name }}/redis/"
+              become: yes
+              register: redis_permissions_result
+
+            - name: Display Redis permissions verification
+              debug:
+                msg: |
+                  
+                  📁 REDIS PERMISSIONS VERIFICATION
+                  =================================
+                  
+                  {{ redis_permissions_result.stdout }}
+                  
+                  ✅ All files and directories in Redis data folder now have correct ownership (999:999)
+                  🔒 This prevents Redis background saving errors and container health issues
           tags:
             - permissions
 

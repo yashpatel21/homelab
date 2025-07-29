@@ -201,6 +201,12 @@ vault_authentik_secret_key: "REPLACE_WITH_60_CHAR_SECRET_KEY"
 #    Example: python3 -c 'import secrets; print(secrets.token_hex(32))'
 # Note: Admin user/password will be set manually via https://auth.radiowaves.app/if/flow/initial-setup/
 
+# Authentik email configuration for password recovery and notifications
+vault_authentik_email_host: "REPLACE_WITH_YOUR_EMAIL_HOST"
+vault_authentik_email_port: "REPLACE_WITH_YOUR_EMAIL_PORT"
+vault_authentik_email_username: "REPLACE_WITH_YOUR_EMAIL_USERNAME"
+vault_authentik_email_password: "REPLACE_WITH_YOUR_EMAIL_PASSWORD"
+
 # Authentik OIDC client credentials
 vault_authentik_grafana_client_id: "grafana"
 vault_authentik_grafana_client_secret: "REPLACE_WITH_GRAFANA_OIDC_SECRET"
@@ -246,6 +252,10 @@ vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
 # vault_adguard_admin_password: "your-current-adguard-admin-password"
 # vault_authentik_postgres_password: "your-secure-postgres-password"
 # vault_authentik_secret_key: "your-64-character-hex-secret-key"
+# vault_authentik_email_host: "your-email-host"
+# vault_authentik_email_port: "your-email-port"
+# vault_authentik_email_username: "your-email-username"
+# vault_authentik_email_password: "your-email-password"
 # vault_authentik_grafana_client_id: "grafana"
 # vault_authentik_grafana_client_secret: "your-base64-grafana-oidc-secret"
 # vault_authentik_homarr_client_id: "homarr"

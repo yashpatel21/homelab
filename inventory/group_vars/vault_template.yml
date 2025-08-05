@@ -175,6 +175,61 @@ vault_convertx_jwt_secret: "REPLACE_WITH_YOUR_CONVERTX_JWT_SECRET"
 vault_letsencrypt_email: "REPLACE_WITH_YOUR_EMAIL@example.com"
 
 # -----------------------------------------------------------------------------
+# VPS/HOST CREDENTIALS
+# -----------------------------------------------------------------------------
+# Sensitive host connection information for external VPS servers
+
+# Pangolin VPS connection details
+vault_pangolin_vps_ip: "REPLACE_WITH_YOUR_PANGOLIN_VPS_IP"
+vault_pangolin_vps_user: "REPLACE_WITH_YOUR_PANGOLIN_VPS_USERNAME"
+vault_pangolin_vps_password: "REPLACE_WITH_YOUR_PANGOLIN_VPS_PASSWORD"
+
+# How to get VPS credentials:
+# 1. IP Address: The public IP address provided by your VPS provider
+# 2. Username: Usually "root", "ubuntu", or a custom user you created
+# 3. Password: The password for SSH authentication (consider using SSH keys instead)
+#
+# Security Note: For better security, set up SSH key authentication:
+# 1. Generate SSH key (if not already done): ssh-keygen -t ed25519 -C "my-email@example.com"
+# 2. Copy to VPS: ssh-copy-id user@vps-ip
+
+# -----------------------------------------------------------------------------
+# PANGOLIN TUNNELING CONFIGURATION
+# -----------------------------------------------------------------------------
+# Newt client credentials for connecting to Pangolin server
+
+vault_pangolin_endpoint: "REPLACE_WITH_YOUR_PANGOLIN_ENDPOINT"
+vault_newt_id: "REPLACE_WITH_YOUR_NEWT_ID"
+vault_newt_secret: "REPLACE_WITH_YOUR_NEWT_SECRET"
+
+# How to get Pangolin tunneling credentials:
+# 1. Pangolin Endpoint: The URL of your Pangolin server
+# 2. Newt ID: Client identifier provided by Pangolin server setup
+# 3. Newt Secret: Client authentication secret provided by Pangolin server setup
+#
+# These credentials are generated during manual Pangolin server setup
+
+# -----------------------------------------------------------------------------
+# CROWDSEC SECURITY CONFIGURATION
+# -----------------------------------------------------------------------------
+# Cloudflare Turnstile credentials for CrowdSec captcha protection
+
+vault_turnstile_site_key: "REPLACE_WITH_YOUR_TURNSTILE_SITE_KEY"
+vault_turnstile_secret_key: "REPLACE_WITH_YOUR_TURNSTILE_SECRET_KEY"
+
+# How to get Cloudflare Turnstile credentials:
+# 1. Go to Cloudflare Dashboard → Turnstile
+# 2. Create a new site with these settings:
+#    - Site name: "Homelab CrowdSec Protection"
+#    - Domain: radiowaves.app (or your domain)
+#    - Widget type: "Non-Interactive" (IMPORTANT: Must be Non-Interactive)
+# 3. Copy the Site Key and Secret Key
+# 4. These keys enable captcha challenges for suspicious traffic detected by CrowdSec
+#
+# Security Note: Non-Interactive mode is required for CrowdSec integration
+# This provides automatic captcha challenges without user interaction for legitimate traffic
+
+# -----------------------------------------------------------------------------
 # AUTHENTIK SSO CONFIGURATION
 # -----------------------------------------------------------------------------
 # Authentication infrastructure for enterprise-grade SSO across all homelab services
@@ -227,18 +282,18 @@ vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
 #
 # Here's what the completed vault.yml should look like (with real values):
 #
-# vault_cloudflare_api_token: "abc123def456..."
-# vault_cloudflare_account_id: "1a2b3c4d5e6f..."
-# vault_cloudflare_zone_id: "zone123abc..."
+# vault_cloudflare_api_token: "your-cloudflare-api-token"
+# vault_cloudflare_account_id: "your-cloudflare-account-id"
+# vault_cloudflare_zone_id: "your-cloudflare-zone-id"
 # ssh_public_keys:
 #   - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@laptop"
-# vault_ntfy_token: "tk_abc123def456..."
+# vault_ntfy_token: "your-ntfy-token"
 # vault_ntfy_admin_password: "your-secure-admin-password"
 # vault_ntfy_monitor_password: "your-secure-monitor-password"
 # vault_ntfy_reader_password: "your-secure-reader-password"
-# vault_proxmox_api_token: "PVEAPIToken=homarr-api@pve!homarr=abc123def456..."
+# vault_proxmox_api_token: "your-proxmox-api-token"
 # vault_homarr_encryption_key: "abc123def456789abcdef123456789abcdef123456789abcdef123456789abc"
-# vault_adguard_monitoring_username: "monitoring"
+# vault_adguard_monitoring_username: "your-monitoring-username"
 # vault_adguard_monitoring_password: "your-secure-monitoring-password"
 # vault_grafana_admin_password: "your-secure-grafana-password"
 # vault_grafana_secret_key: "your-base64-encoded-secret-key"
@@ -248,7 +303,15 @@ vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
 # vault_nextcloud_borg_backup_password: "your-borg-backup-encryption-password"
 # vault_convertx_jwt_secret: "your-base64-encoded-jwt-secret"
 # vault_letsencrypt_email: "your-email@example.com"
-# vault_adguard_admin_username: "admin"
+# vault_pangolin_vps_ip: "your-pangolin-vps-ip"
+# vault_pangolin_vps_user: "your-pangolin-vps-user"
+# vault_pangolin_vps_password: "your-secure-vps-password"
+# vault_pangolin_endpoint: "your-pangolin-endpoint"
+# vault_newt_id: "your-newt-id"
+# vault_newt_secret: "your-newt-secret"
+# vault_turnstile_site_key: "your-turnstile-site-key"
+# vault_turnstile_secret_key: "your-turnstile-secret-key"
+# vault_adguard_admin_username: "your-adguard-admin-username"
 # vault_adguard_admin_password: "your-current-adguard-admin-password"
 # vault_authentik_postgres_password: "your-secure-postgres-password"
 # vault_authentik_secret_key: "your-64-character-hex-secret-key"
@@ -256,11 +319,11 @@ vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
 # vault_authentik_email_port: "your-email-port"
 # vault_authentik_email_username: "your-email-username"
 # vault_authentik_email_password: "your-email-password"
-# vault_authentik_grafana_client_id: "grafana"
+# vault_authentik_grafana_client_id: "your-grafana-client-id"
 # vault_authentik_grafana_client_secret: "your-base64-grafana-oidc-secret"
-# vault_authentik_homarr_client_id: "homarr"
+# vault_authentik_homarr_client_id: "your-homarr-client-id"
 # vault_authentik_homarr_client_secret: "your-base64-homarr-oidc-secret"
-# vault_authentik_nextcloud_client_id: "nextcloud"
+# vault_authentik_nextcloud_client_id: "your-nextcloud-client-id"
 # vault_authentik_nextcloud_client_secret: "your-base64-nextcloud-oidc-secret"
 #
 # =============================================================================

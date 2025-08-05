@@ -26,6 +26,12 @@ all:
                     ansible_host: 192.168.1.1
                     ansible_user: root
                     ansible_become: yes
+        pangolin_hosts:
+            hosts:
+                pangolin-vps:
+                    ansible_host: "{{ vault_pangolin_vps_ip }}"
+                    ansible_user: "{{ vault_pangolin_vps_user }}"
+                    ansible_become: yes
                     
 
 # =============================================================================
@@ -40,5 +46,8 @@ all:
 #
 # Test with vault password:
 # ansible all -i inventory/homelab.yml -m ping --ask-vault-pass
+#
+# Test pangolin VPS specifically:
+# ansible pangolin-vps -i inventory/homelab.yml -m ping --ask-vault-pass
 #
 # =============================================================================

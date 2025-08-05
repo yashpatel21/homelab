@@ -1,0 +1,18 @@
+services:
+  newt:
+    image: fosrl/newt
+    container_name: newt
+    restart: unless-stopped
+    environment:
+      - PANGOLIN_ENDPOINT={{ vault_pangolin_endpoint }}
+      - NEWT_ID={{ vault_newt_id }}
+      - NEWT_SECRET={{ vault_newt_secret }}
+    networks:
+      - {{ homelab_network_name }}
+    labels:
+      # Watchtower updates
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  {{ homelab_network_name }}:
+    external: true 

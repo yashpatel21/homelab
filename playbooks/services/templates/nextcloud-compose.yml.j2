@@ -43,9 +43,7 @@ services:
       # Allow local remote servers for Authentik OIDC (same host)
       - NEXTCLOUD_TRUSTED_CACERTS_DIR=/etc/ssl/certs
 {% endif %}
-    labels:
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
+
 
 volumes:
   nextcloud_aio_mastercontainer:

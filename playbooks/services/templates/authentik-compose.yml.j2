@@ -31,8 +31,6 @@ services:
     networks:
       - homelab
     labels:
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
       # Database backup labels
       - "backup.enable=true"
       - "backup.type=postgresql"
@@ -57,8 +55,6 @@ services:
     networks:
       - homelab
     labels:
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
 
   # ===========================================================================
   # AUTHENTIK SERVER

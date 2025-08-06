@@ -1,15 +1,12 @@
 ---
 # Prometheus + Grafana Monitoring Stack
 # Complete monitoring solution for homelab infrastructure
-
-version: '3.8'
-
 services:
   # ===========================================================================
   # PROMETHEUS - Metrics Collection and Storage
   # ===========================================================================
   prometheus:
-    image: prom/prometheus:v2.55.0
+    image: prom/prometheus:v3.5.0
     container_name: prometheus
     hostname: prometheus
     restart: unless-stopped
@@ -45,7 +42,7 @@ services:
   # GRAFANA - Visualization Dashboards
   # ===========================================================================
   grafana:
-    image: grafana/grafana:11.3.0
+    image: grafana/grafana:12.0.4
     container_name: grafana
     hostname: grafana
     restart: unless-stopped
@@ -98,7 +95,7 @@ services:
   # NODE EXPORTER - System Metrics
   # ===========================================================================
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.9.1
     container_name: node-exporter
     hostname: node-exporter
     restart: unless-stopped
@@ -169,7 +166,7 @@ services:
   # OPNSENSE EXPORTER - Firewall and Service Metrics
   # ===========================================================================
   opnsense-exporter:
-    image: ghcr.io/athennamind/opnsense-exporter:latest
+    image: ghcr.io/athennamind/opnsense-exporter:0.0.10
     container_name: opnsense-exporter
     hostname: opnsense-exporter
     restart: unless-stopped

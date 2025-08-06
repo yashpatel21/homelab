@@ -14,7 +14,7 @@
 
 services:
   traefik:
-    image: "traefik:v3.4"
+    image: traefik:v3.5.0
     container_name: "traefik"
     restart: unless-stopped
     command:
@@ -97,7 +97,7 @@ services:
       - "traefik.http.routers.dashboard.service=api@internal"
 
   whoami:
-    image: "traefik/whoami"
+    image: traefik/whoami:v1.11.0
     container_name: "whoami"
     restart: unless-stopped
     

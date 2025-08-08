@@ -16,7 +16,7 @@
 # What this playbook does:
 # 1. Creates IT Tools configuration directories
 # 2. Deploys IT Tools container with Traefik integration
-# 3. Configures automatic updates via Watchtower
+# 3. Configures automatic update notifications via WUD
 # 4. Verifies service deployment and accessibility
 #
 # Idempotent Design:
@@ -274,7 +274,7 @@
           • IT Tools runs entirely in the browser - no data is sent to external servers
           • All processing happens client-side for maximum privacy and security
           • Tools are immediately available after deployment
-          • Service automatically updates via Watchtower when new versions are available
+          • Service automatically monitored by WUD for update notifications when new versions are available
           
           ============================================================
       tags: 

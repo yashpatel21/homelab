@@ -18,7 +18,13 @@ services:
       - "traefik.http.routers.uptime-kuma.middlewares=authentik@file"
 {% endif %}
       - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Uptime Kuma"
+      - "wud.link.template=https://github.com/louislam/uptime-kuma/releases/tag/$${raw}"
 
 networks:
   {{ homelab_network_name }}:

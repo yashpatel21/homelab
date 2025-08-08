@@ -36,7 +36,14 @@ services:
       - "traefik.http.routers.prometheus.middlewares=authentik@file"
 {% endif %}
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Prometheus"
+      - "wud.link.template=https://github.com/prometheus/prometheus/releases/tag/$${raw}"
 
   # ===========================================================================
   # GRAFANA - Visualization Dashboards
@@ -89,7 +96,13 @@ services:
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver={{ ssl_cert_resolver }}"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Grafana"
+      - "wud.link.template=https://github.com/grafana/grafana/releases/tag/v$${raw}"
 
   # ===========================================================================
   # NODE EXPORTER - System Metrics
@@ -113,7 +126,14 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Node Exporter"
+      - "wud.link.template=https://github.com/prometheus/node_exporter/releases/tag/$${raw}"
 
   # ===========================================================================
   # CADVISOR - Docker Container Metrics
@@ -139,7 +159,14 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=cAdvisor"
+      - "wud.link.template=https://github.com/google/cadvisor/releases/tag/$${raw}"
 
   # ===========================================================================
   # ADGUARD EXPORTER - DNS Analytics
@@ -160,7 +187,14 @@ services:
       - INTERVAL=30s
       - LOG_LEVEL=info
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=AdGuard Exporter"
+      - "wud.link.template=https://github.com/henrywhitaker3/adguard-exporter/releases/tag/$${raw}"
 
   # ===========================================================================
   # OPNSENSE EXPORTER - Firewall and Service Metrics
@@ -184,7 +218,13 @@ services:
       - OPNSENSE_EXPORTER_OPS_API_KEY={{ vault_opnsense_api_key }}
       - OPNSENSE_EXPORTER_OPS_API_SECRET={{ vault_opnsense_api_secret }}
     labels:
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=OPNsense Exporter"
+      - "wud.link.template=https://github.com/AthennaMind/opnsense-exporter/releases/tag/v$${raw}"
 
 # ===========================================================================
 # NETWORKS

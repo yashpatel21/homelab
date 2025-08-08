@@ -7,7 +7,7 @@
 # - Let's Encrypt SSL certificates via Cloudflare DNS challenge
 # - Traefik dashboard with SSL
 # - Whoami test service for SSL verification
-# - Watchtower labels for automatic updates
+# - WUD labels for update notifications
 #
 # Generated from Ansible template: traefik-compose.yml.j2
 # =============================================================================
@@ -72,8 +72,14 @@ services:
       - {{ homelab_network_name }}
     
     labels:
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Traefik Reverse Proxy"
+      - "wud.link.template=https://github.com/traefik/traefik/releases/tag/$${raw}"
       
       # Traefik dashboard routing
       - "traefik.enable=true"
@@ -105,8 +111,14 @@ services:
       - {{ homelab_network_name }}
     
     labels:
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Traefik Whoami"
+      - "wud.link.template=https://github.com/traefik/whoami/releases/tag/$${raw}"
       
       # Traefik routing configuration
       - "traefik.enable=true"

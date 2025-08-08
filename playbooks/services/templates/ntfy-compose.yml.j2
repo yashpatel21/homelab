@@ -33,8 +33,14 @@ services:
 {% endif %}
       - "traefik.http.services.ntfy.loadbalancer.server.port=80"
       
-      # Watchtower updates
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=NTFY"
+      - "wud.link.template=https://github.com/binwiederhier/ntfy/releases/tag/$${raw}"
 
 networks:
   {{ homelab_network_name }}:

@@ -54,7 +54,6 @@ services:
       - "{{ data_directory }}/{{ authentik_service_name }}/redis:/data"
     networks:
       - homelab
-    labels:
 
   # ===========================================================================
   # AUTHENTIK SERVER
@@ -138,8 +137,14 @@ services:
       - "traefik.http.routers.authentik-outpost.service=authentik-outpost"
       - "traefik.http.services.authentik-outpost.loadbalancer.server.port=9000"
       
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Date-based versioning (YYYY.M.D format)
+      - "wud.watch=true"
+      - "wud.tag.include=^20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^(20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Authentik Server"
+      - "wud.link.template=https://github.com/goauthentik/authentik/releases/tag/version/$${raw}"
 
   # ===========================================================================
   # AUTHENTIK WORKER
@@ -196,8 +201,14 @@ services:
       authentik_redis:
         condition: service_healthy
     labels:
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Date-based versioning (YYYY.M.D format)
+      - "wud.watch=true"
+      - "wud.tag.include=^20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^(20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Authentik Worker"
+      - "wud.link.template=https://github.com/goauthentik/authentik/releases/tag/version/$${raw}"
 
 # =============================================================================
 # NETWORKS

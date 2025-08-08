@@ -1,0 +1,74 @@
+#!/bin/bash
+NTFY_TOKEN="{{ vault_ntfy_token }}"
+
+log() { 
+    echo "[$(date)] $1" >&2
+}
+
+send_notification() { 
+    curl -s -X POST "http://ntfy:80/homelab-updates" \
+        -H "Authorization: Bearer ${NTFY_TOKEN}" \
+        -H "Title: $1" \
+        -d "$2"
+}
+
+extract_release_link() {
+    if [ -n "${container_json}" ]; then
+        log "Container JSON available, extracting release link..."
+        # First try to extract the link from the result object (latest version)
+        link=$(echo "${container_json}" | grep -o '"result":{[^}]*"link":"[^"]*"' | grep -o '"link":"[^"]*"' | cut -d'"' -f4)
+        if [ -n "${link}" ]; then
+            log "Found latest version release link: ${link}"
+            echo "${link}"
+        else
+            # Fallback to main link if result.link not found
+            link=$(echo "${container_json}" | grep -o '"link":"[^"]*"' | head -1 | cut -d'"' -f4)
+            if [ -n "${link}" ]; then
+                log "Found current version release link (fallback): ${link}"
+                echo "${link}"
+            else
+                log "No release link found in JSON"
+                echo "No release link available"
+            fi
+        fi
+    else
+        log "No container JSON available"
+        echo "No release link available"
+    fi
+}
+
+main() {
+    log "WUD notification for ${display_name}"
+    case "${update_kind_semver_diff}" in
+        "patch") 
+            log "Patch update - skipping"
+            exit 0
+            ;;
+        *) 
+            log "Major/minor update - notifying"
+            ;;
+    esac
+    
+    # Extract release link
+    release_link=$(extract_release_link)
+    log "Release link result: ${release_link}"
+    
+    # Create multi-line notification body with release link
+    body="Current: ${update_kind_local_value}
+Latest: ${update_kind_remote_value}
+
+Release: ${release_link}"
+    
+    # Check if this is an Authentik container and add upgrade instructions
+    if [[ "${display_name}" =~ [Aa]uthentik ]]; then
+        body="${body}
+
+⚠️ Authentik Upgrade Instructions:
+Check https://docs.goauthentik.io/docs/install-config/upgrade and follow instructions."
+        log "Added Authentik-specific upgrade instructions"
+    fi
+    
+    send_notification "🐳 ${display_name} Update Available" "${body}"
+}
+
+main

@@ -33,7 +33,14 @@ services:
       - "traefik.http.routers.homarr.entrypoints=websecure"
       - "traefik.http.routers.homarr.tls.certresolver={{ ssl_cert_resolver }}"
       - "traefik.http.services.homarr.loadbalancer.server.port=7575"
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Homarr"
+      - "wud.link.template=https://github.com/homarr-labs/homarr/releases/tag/$${raw}"
 
 networks:
   {{ homelab_network_name }}:

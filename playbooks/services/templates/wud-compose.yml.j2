@@ -1,0 +1,79 @@
+---
+# =============================================================================
+# WUD (What's Up Docker) - Docker Image Update Notifier
+# =============================================================================
+# 
+# This Docker Compose file deploys WUD with:
+# - Semantic version-aware update notifications (major/minor only)
+# - Native NTFY integration for push notifications
+# - Traefik reverse proxy integration with SSL
+# - Web UI for monitoring container update status
+# - Selective container monitoring via labels
+# - Tag filtering and transformation capabilities
+#
+# Generated from Ansible template: wud-compose.yml.j2
+# =============================================================================
+
+services:
+  wud:
+    image: getwud/wud:8.1.1
+    container_name: wud
+    restart: unless-stopped
+    
+    # Docker socket access for container monitoring
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ data_directory }}/wud/store:/store
+      - {{ data_directory }}/wud/notify.sh:/wud/notify.sh:ro
+    
+    # Environment configuration
+    environment:
+      - TZ={{ system_timezone }}
+      - LOG_LEVEL=info
+      
+      # Watcher configuration - only watch labeled containers
+      - WUD_WATCHER_LOCAL_WATCHBYDEFAULT=false
+      - WUD_WATCHER_LOCAL_CRON={{ services.wud.schedule }}
+      - WUD_WATCHER_LOCAL_WATCHEVENTS=false
+      - WUD_WATCHER_LOCAL_WATCHATSTART=true
+      
+      # Custom NTFY notifications via command trigger
+      # This approach allows us to implement major/minor-only logic
+      - WUD_TRIGGER_COMMAND_NTFY_CMD=/wud/notify.sh
+      - WUD_TRIGGER_COMMAND_NTFY_SHELL=/bin/bash
+      - WUD_TRIGGER_COMMAND_NTFY_TIMEOUT=30000
+      - WUD_TRIGGER_COMMAND_NTFY_ONCE=false
+      
+{% if auth_enabled | default(false) %}
+      # Authentik OIDC Authentication
+      - WUD_AUTH_OIDC_AUTHENTIK_CLIENTID={{ vault_authentik_wud_client_id }}
+      - WUD_AUTH_OIDC_AUTHENTIK_CLIENTSECRET={{ vault_authentik_wud_client_secret }}
+      - WUD_AUTH_OIDC_AUTHENTIK_DISCOVERY=https://auth.{{ base_domain }}/application/o/wud/.well-known/openid-configuration
+      - WUD_AUTH_OIDC_AUTHENTIK_REDIRECT=true
+{% endif %}
+    
+    # Network configuration
+    networks:
+      - {{ homelab_network_name }}
+    
+    # Service labels
+    labels:
+      # Traefik reverse proxy configuration
+      - "traefik.enable=true"
+      - "traefik.http.routers.wud.rule=Host(`wud.{{ base_domain }}`)"
+      - "traefik.http.routers.wud.entrypoints=websecure"
+      - "traefik.http.routers.wud.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.services.wud.loadbalancer.server.port=3000"
+      
+      # WUD self-monitoring - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=latest|alpha|beta|rc|dev"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=WUD"
+      - "wud.link.template=https://github.com/getwud/wud/releases/tag/$${raw}"
+
+# Network configuration
+networks:
+  {{ homelab_network_name }}:
+    external: true 

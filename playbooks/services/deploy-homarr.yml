@@ -268,7 +268,7 @@
           2. Configure service tiles for all deployed services
           3. Set up Proxmox integration widgets
           4. Customize dashboard layout and appearance
-          5. Deploy other Phase 3 services as needed (Uptime Kuma, Watchtower)
+          5. Deploy other Phase 3 services as needed (Uptime Kuma, WUD)
           
           ============================================================
       tags: 

@@ -55,6 +55,7 @@
               - vault_authentik_secret_key
               - vault_authentik_grafana_client_secret
               - vault_authentik_homarr_client_secret
+              - vault_authentik_wud_client_secret
               - vault_authentik_email_host
               - vault_authentik_email_username  
               - vault_authentik_email_password
@@ -67,6 +68,7 @@
             vault_authentik_secret_key is not defined or
             vault_authentik_grafana_client_secret is not defined or
             vault_authentik_homarr_client_secret is not defined or
+            vault_authentik_wud_client_secret is not defined or
             vault_authentik_email_host is not defined or
             vault_authentik_email_username is not defined or
             vault_authentik_email_password is not defined

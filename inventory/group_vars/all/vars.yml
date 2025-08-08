@@ -89,8 +89,8 @@ services:
     port: "7575"
     domain: "{{ base_domain }}"  # Root domain
   
-  watchtower:
-    schedule: "0 0 4 * * *"  # 4 AM daily
+  wud:
+    schedule: "0 12 * * 0"  # Weekly on Sundays at 12pm
 
 # -----------------------------------------------------------------------------
 # MONITORING CONFIGURATION

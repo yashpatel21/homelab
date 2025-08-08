@@ -6,7 +6,7 @@
 # This Docker Compose file deploys IT Tools with:
 # - Collection of handy online developer tools
 # - Traefik integration via labels
-# - Watchtower labels for automatic updates
+# - WUD labels for update notifications
 # - Homelab network integration
 # - SSL termination via Traefik
 #
@@ -36,10 +36,11 @@ services:
 {% endif %}
       - "traefik.http.services.it-tools.loadbalancer.server.port=80"
       
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
-      
-      # Service metadata
-      - "homelab.service=it-tools"
-      - "homelab.category=productivity"
-      - "homelab.description=Collection of handy online tools for developers" 
+      # WUD update notifications - Date-based versioning (YYYY.MM.DD-hash format)
+      - "wud.watch=true"
+      - "wud.tag.include=^20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{2}(-[a-f0-9]+)?$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^(20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{2})(-[a-f0-9]+)?$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=IT Tools"
+      - "wud.link.template=https://github.com/CorentinTh/it-tools/releases/tag/v$${raw}"

@@ -7,7 +7,7 @@
 # - Self-hosted file converter supporting 1000+ formats
 # - Traefik integration via labels for SSL termination
 # - Secure JWT authentication and user management
-# - Watchtower labels for automatic updates
+# - WUD labels for update notifications
 # - Homelab network integration
 # - Persistent data storage for conversion history
 # - Automatic file cleanup configuration
@@ -65,10 +65,11 @@ services:
 {% endif %}
       - "traefik.http.services.convertx.loadbalancer.server.port=3000"
       
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
-      
-      # Service metadata
-      - "homelab.service=convertx"
-      - "homelab.category=productivity"
-      - "homelab.description=Self-hosted file converter supporting 1000+ formats" 
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=ConvertX"
+      - "wud.link.template=https://github.com/C4illin/ConvertX/releases/tag/$${raw}"

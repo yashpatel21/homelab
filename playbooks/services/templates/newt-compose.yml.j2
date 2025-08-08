@@ -10,8 +10,13 @@ services:
     networks:
       - {{ homelab_network_name }}
     labels:
-      # Watchtower updates
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Newt"
+      - "wud.link.template=https://github.com/fosrl/newt/releases/tag/$${raw}"
 
 networks:
   {{ homelab_network_name }}:

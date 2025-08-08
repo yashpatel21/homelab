@@ -1,38 +1,40 @@
 ---
 # =============================================================================
-# PHASE 3: Supporting Services - Watchtower Automatic Updates Deployment
+# PHASE 3: Supporting Services - WUD Docker Image Update Notifications
 # =============================================================================
 # 
-# This playbook deploys Watchtower for automatic Docker container updates
-# with NTFY notification integration and selective update management.
+# This playbook deploys WUD (What's Up Docker) for monitoring Docker container
+# updates with NTFY notification integration and semantic version-aware
+# update monitoring management.
 #
 # Prerequisites:
 # - Phase 1 infrastructure setup completed
 # - Phase 2 core services deployed (Traefik, NTFY, AdGuard Home)
 # - Docker installed and homelab network created
 # - NTFY service operational for update notifications
-# - Containers properly labeled for selective updates
+# - Containers properly labeled for selective monitoring
 #
 # What this playbook does:
-# 1. Deploys Watchtower Docker Compose stack
-# 2. Configures automatic update scheduling (daily at 4 AM)
-# 3. Sets up NTFY notification integration for update reports
-# 4. Enables selective container update management via labels
-# 5. Verifies service deployment and notification functionality
+# 1. Deploys WUD Docker Compose stack
+# 2. Configures semantic version-aware update checking (daily at 6 PM)
+# 3. Sets up native NTFY notification integration for update reports
+# 4. Enables selective container update monitoring via labels
+# 5. Provides web UI access via Traefik for monitoring status
+# 6. Verifies service deployment and notification functionality
 #
 # Idempotent Design:
 # - Safe to run multiple times
 # - Handles configuration updates gracefully
-# - Works with existing Watchtower deployments
+# - Works with existing WUD deployments
 # - Preserves update schedules and settings
 #
 # Manual Configuration Required:
-# - Verify container labels for selective updates
-# - Monitor update logs and notifications
-# - Test notification delivery via NTFY
+# - Verify container labels for selective monitoring
+# - Monitor update notifications via NTFY
+# - Test notification delivery and web UI access
 #
 # Usage:
-# ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-watchtower.yml --ask-vault-pass
+# ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-wud.yml --ask-vault-pass
 #
 # Tags:
 # --tags setup      : Only create directories and configuration
@@ -41,11 +43,11 @@
 # --tags update     : Force update and restart service
 # =============================================================================
 
-- name: Deploy Watchtower Automatic Updates
+- name: Deploy WUD Docker Image Update Notifier
   hosts: ubuntu_servers
   become: true
   vars:
-    service_name: "watchtower"
+    service_name: "wud"
     compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
     
   tasks:
@@ -64,9 +66,33 @@
         - setup
         - always
 
+    - name: "Setup - Ensure WUD data directory exists"
+      file:
+        path: "{{ data_directory }}/wud/store"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+      tags: 
+        - setup
+        - always
+
+    - name: "Setup - Generate WUD notification script from template"
+      template:
+        src: "wud-notify.sh.j2"
+        dest: "{{ data_directory }}/wud/notify.sh"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: '0755'
+        backup: yes
+      tags: 
+        - setup
+        - deploy
+        - update
+
     - name: "Setup - Generate Docker Compose file from template"
       template:
-        src: "watchtower-compose.yml.j2"
+        src: "wud-compose.yml.j2"
         dest: "{{ compose_file }}"
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
@@ -89,9 +115,9 @@
     # DEPLOY: Service Deployment and Management
     # =============================================================================
 
-    - name: "Deploy - Check for existing Watchtower containers"
-      shell: "docker ps -a | grep watchtower || true"
-      register: existing_watchtower_containers
+    - name: "Deploy - Check for existing WUD containers"
+      shell: "docker ps -a | grep wud || true"
+      register: existing_wud_containers
       changed_when: false
       failed_when: false
       tags: 
@@ -99,17 +125,17 @@
         - verify
         - always
 
-    - name: "Deploy - Display existing Watchtower containers"
+    - name: "Deploy - Display existing WUD containers"
       debug:
         msg: |
-          🔍 EXISTING WATCHTOWER CONTAINERS CHECK:
-          {% if existing_watchtower_containers.stdout %}
-          ⚠️  Found existing Watchtower containers:
-          {{ existing_watchtower_containers.stdout }}
+          🔍 EXISTING WUD CONTAINERS CHECK:
+          {% if existing_wud_containers.stdout %}
+          ⚠️  Found existing WUD containers:
+          {{ existing_wud_containers.stdout }}
           
           💡 Note: Will be managed by Ansible if names match
           {% else %}
-          ✅ No existing Watchtower containers found
+          ✅ No existing WUD containers found
           {% endif %}
       tags: 
         - deploy
@@ -137,10 +163,10 @@
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
       shell: |
         # Remove containers with conflicting names (including stopped ones)
-        if docker ps -a -q -f name=^watchtower$ | grep -q .; then
-          echo "Removing existing container: watchtower"
-          docker stop watchtower 2>/dev/null || true
-          docker rm watchtower 2>/dev/null || true
+        if docker ps -a -q -f name=^wud$ | grep -q .; then
+          echo "Removing existing container: wud"
+          docker stop wud 2>/dev/null || true
+          docker rm wud 2>/dev/null || true
         fi
       register: cleanup_result
       changed_when: "'Removing existing container' in cleanup_result.stdout"
@@ -155,7 +181,7 @@
         - deploy
         - update
 
-    - name: "Deploy - Start Watchtower service"
+    - name: "Deploy - Start WUD service"
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
@@ -163,9 +189,9 @@
         - deploy
         - update
 
-    - name: "Deploy - Wait for Watchtower service to initialize"
+    - name: "Deploy - Wait for WUD service to initialize"
       pause:
-        seconds: 10
+        seconds: 15
       tags: 
         - deploy
         - verify
@@ -189,9 +215,9 @@
         - verify
         - always
 
-    - name: "Verify - Check Watchtower logs"
-      shell: "docker logs watchtower | tail -20"
-      register: watchtower_logs
+    - name: "Verify - Check WUD logs"
+      shell: "docker logs wud | tail -20"
+      register: wud_logs
       changed_when: false
       failed_when: false
       tags: 
@@ -200,37 +226,48 @@
     - name: "Verify - Display recent logs"
       debug:
         msg: |
-          📋 RECENT WATCHTOWER LOGS:
-          {{ watchtower_logs.stdout_lines | join('\n') }}
+          📋 RECENT WUD LOGS:
+          {{ wud_logs.stdout_lines | join('\n') }}
       tags: 
         - verify
         - always
 
+    - name: "Verify - Test WUD web interface accessibility"
+      uri:
+        url: "http://localhost:3000"
+        method: GET
+        timeout: 10
+      register: wud_web_test
+      failed_when: false
+      tags: 
+        - verify
+
     - name: "Verify - Test NTFY notification connectivity"
       uri:
-        url: "https://ntfy.{{ base_domain }}/homelab-updates"
+        url: "http://localhost:8082/homelab-updates"
         method: POST
+        body: "WUD notification test - service deployed successfully"
         headers:
           Authorization: "Bearer {{ vault_ntfy_token }}"
-          Title: "Watchtower Deployment Test"
-        body: "Watchtower has been deployed successfully via Ansible"
+          Title: "🐳 WUD Test Notification"
+          Priority: "3"
+          Tags: "docker,updates,test"
         timeout: 10
-        validate_certs: false
-        status_code: [200, 202]
       register: ntfy_test_result
       failed_when: false
       tags: 
         - verify
 
-    - name: "Verify - Display NTFY test results"
+    - name: "Verify - Display verification results"
       debug:
         msg: |
-          📡 NTFY NOTIFICATION TEST RESULTS:
+          🔍 WUD SERVICE VERIFICATION RESULTS:
           
-          • NTFY Connectivity: {{ '✅ Success' if ntfy_test_result.status in [200, 202] else '❌ Failed (' + (ntfy_test_result.status | string) + ')' }}
-          • Test notification sent to homelab-updates channel
+          • Web Interface: {{ '✅ Accessible' if wud_web_test.status == 200 else '❌ Not accessible' }}
+          • NTFY Integration: {{ '✅ Working' if ntfy_test_result.status in [200, 202] else '❌ Check configuration' }}
           
-          💡 Note: Check your NTFY client for the test notification
+          💡 Web UI: https://wud.{{ base_domain }}
+          💡 Check your NTFY client for the test notification
       tags: 
         - verify
         - always
@@ -243,18 +280,19 @@
       debug:
         msg: |
           ============================================================
-          ⚡ WATCHTOWER DEPLOYMENT SUMMARY
+          ⚡ WUD DEPLOYMENT SUMMARY
           ============================================================
           
           📋 Compose File: {{ compose_file }}
-          ⏰ Update Schedule: Daily at 4:00 AM (0 0 4 * * *)
+          ⏰ Update Check Schedule: {{ services.wud.schedule }}
           📡 NTFY Channel: homelab-updates
+          🌐 Web Interface: https://wud.{{ base_domain }}
           
           🔧 Update Configuration:
-          • Label-based updates: Only containers with com.centurylinklabs.watchtower.enable=true
-          • Cleanup: Removes old images automatically
-          • Rolling restart: Minimizes service disruption
-          • Notifications: Update reports sent to NTFY
+          • Label-based monitoring: Only containers with wud.watch=true
+          • Semantic versioning: Major/minor notifications only
+          • Notifications: Native NTFY integration with custom templates
+          • Web UI: Real-time monitoring dashboard available
           
           📊 Service Status:
           {% if running_containers is defined and ntfy_test_result is defined %}
@@ -266,46 +304,50 @@
           
           🔧 Service Management Commands:
           • View logs: docker compose -f {{ compose_file }} logs -f
-          • Check updates: docker logs watchtower | grep -i "update\|pulling"
+          • Check notifications: docker logs wud | grep -i "notification\|ntfy"
           • Restart: docker compose -f {{ compose_file }} restart
           • Stop: docker compose -f {{ compose_file }} down
           
           📝 Manual Tasks Required:
-          1. **Verify Container Labels**: Ensure containers have watchtower.enable=true label
-          2. **Monitor First Update**: Watch logs during first scheduled update cycle
-          3. **Test Notifications**: Verify NTFY alerts are received properly
-          4. **Update Management**: Monitor update success and handle any failures
+          1. **Verify Container Labels**: Ensure containers have wud.watch=true label
+          2. **Monitor First Check**: Watch logs during first scheduled check cycle
+          3. **Test Web Interface**: Access WUD dashboard at https://wud.{{ base_domain }}
+          4. **Update Management**: Monitor notification success and handle any failures
           
           🚀 Next Steps:
-          1. Check container labels: docker ps --filter "label=com.centurylinklabs.watchtower.enable=true"
-          2. Monitor update logs: docker logs -f watchtower
-          3. Verify NTFY notifications are received
-          4. Set up monitoring for update failures
+          1. Check container labels: docker ps --filter "label=wud.watch=true"
+          2. Monitor check logs: docker logs -f wud
+          3. Access web interface: https://wud.{{ base_domain }}
+          4. Verify NTFY notifications are received
           5. Deploy other Phase 3 services as needed (Homarr, Uptime Kuma)
           
           ============================================================
       tags: 
         - always
 
-    - name: "Summary - Container labeling reminder"
+    - name: "Summary - Container labeling requirements"
       debug:
         msg: |
           💡 CONTAINER LABELING REQUIREMENTS:
           
-          For containers to be updated by Watchtower, they must include this label:
+          For containers to be monitored by WUD, they must include these labels:
           
           labels:
-            - "com.centurylinklabs.watchtower.enable=true"
+            - "wud.watch=true"
+            - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+            - "wud.tag.exclude=latest|alpha|beta|rc|dev"
+            - "wud.trigger.include=command.ntfy"
+            - "wud.display.name=Service Name"
+            - "wud.link.template=https://github.com/..."
           
-          # Check which containers are enabled for updates
-          docker ps --filter "label=com.centurylinklabs.watchtower.enable=true"
+          # Check which containers are enabled for monitoring
+          docker ps --filter "label=wud.watch=true"
           
-          # View Watchtower activity
-          docker logs watchtower | grep -i "update\|pulling\|updated"
+          # View WUD activity
+          docker logs wud | grep -i "check\|notification\|ntfy"
           
-          # Test immediate update check (manual)
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            containrrr/watchtower --run-once --cleanup
+          # Access web interface
+          https://wud.{{ base_domain }}
           
           # Monitor update notifications
           # Check your NTFY client for homelab-updates channel

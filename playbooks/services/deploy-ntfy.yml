@@ -1190,7 +1190,7 @@
           {% endif %}
           
           📜 Notification Topics & Monitoring Coverage:
-          • homelab-updates (Watchtower notifications)
+          • homelab-updates (WUD update notifications)
           • uptime-alerts (Service monitoring)  
           • system-updates (Ubuntu updates - weekly Sundays 12 PM) ✅ Tested
           • proxmox-alerts (Backup status + updates - weekly Sundays 12 PM) ✅ Tested

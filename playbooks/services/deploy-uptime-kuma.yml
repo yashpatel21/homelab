@@ -284,7 +284,7 @@
           3. Create monitors for all infrastructure services
           4. Configure NTFY notification integration
           5. Test monitoring alerts and notifications
-          6. Deploy other Phase 3 services as needed (Homarr, Watchtower)
+          6. Deploy other Phase 3 services as needed (Homarr, WUD)
           
           ============================================================
       tags: 

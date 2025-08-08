@@ -269,6 +269,8 @@ vault_authentik_homarr_client_id: "homarr"
 vault_authentik_homarr_client_secret: "REPLACE_WITH_HOMARR_OIDC_SECRET"
 vault_authentik_nextcloud_client_id: "nextcloud"
 vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
+vault_authentik_wud_client_id: "wud"
+vault_authentik_wud_client_secret: "REPLACE_WITH_WUD_OIDC_SECRET"
 
 # How to generate OIDC client secrets:
 # Run: openssl rand -base64 48
@@ -276,7 +278,7 @@ vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
 # These will be configured in Authentik web interface during setup
 # Keep these secrets secure - they authenticate your services to Authentik
 
-# =============================================================================
+# -----------------------------------------------------------------------------
 # EXAMPLE COMPLETED VAULT FILE
 # =============================================================================
 #

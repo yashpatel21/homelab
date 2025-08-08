@@ -17,7 +17,7 @@
 # 1. Creates ConvertX configuration and data directories
 # 2. Deploys ConvertX container with Traefik integration
 # 3. Configures secure environment with JWT authentication
-# 4. Sets up automatic file cleanup and updates via Watchtower
+# 4. Sets up automatic file cleanup and update notifications via WUD
 # 5. Verifies service deployment and accessibility
 #
 # Idempotent Design:

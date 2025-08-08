@@ -6,7 +6,7 @@
 # This Docker Compose file deploys AdGuard Home with:
 # - DNS filtering and ad blocking
 # - Traefik reverse proxy integration with SSL
-# - Watchtower labels for automatic updates
+# - WUD labels for update notifications
 # - Proper port bindings for DNS service
 # - Persistent configuration and data volumes
 #
@@ -57,8 +57,14 @@ services:
 {% endif %}
       - "traefik.http.services.adguard.loadbalancer.server.port=3000"
       
-      # Watchtower automatic updates
-      - "com.centurylinklabs.watchtower.enable=true"
+      # WUD update notifications - Major/Minor only with semantic versioning
+      - "wud.watch=true"
+      - "wud.tag.include=^v\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=-b\\.|alpha|beta|rc|dev"
+      - "wud.tag.transform=^v?(\\d+\\.\\d+\\.\\d+).*$ => $1"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=AdGuard Home"
+      - "wud.link.template=https://github.com/AdguardTeam/AdGuardHome/releases/tag/$${raw}"
 
 # Network configuration
 networks:

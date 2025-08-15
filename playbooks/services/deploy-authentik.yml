@@ -1,23 +1,46 @@
 ---
 # =============================================================================
-# DEPLOY AUTHENTIK SSO INFRASTRUCTURE PLAYBOOK
+# PHASE 5: Security Services - Authentik SSO Infrastructure Deployment
 # =============================================================================
 # 
-# This playbook deploys the Authentik SSO infrastructure components:
-# - PostgreSQL database for Authentik data storage
-# - Redis cache for session management
-# - Authentik server with initial configuration
-# - Traefik dynamic middleware for authentication
+# This playbook deploys Authentik SSO infrastructure for centralized authentication
+# across homelab services with PostgreSQL database, Redis cache, and Traefik
+# middleware integration.
 #
 # Prerequisites:
 # - auth_enabled: true in group_vars/all/vars.yml
 # - All authentication vault variables configured
 # - DNS override for auth.radiowaves.app configured in OPNsense
+# - Phase 1-4 infrastructure and services deployed
 #
-# After deployment:
-# 1. Complete Authentik manual setup via web interface
-# 2. Configure user groups and OIDC applications
-# 3. Run deploy-services-with-auth.yml to enable authentication on services
+# What this playbook does:
+# 1. Validates authentication prerequisites and vault variables
+# 2. Creates Authentik configuration directories
+# 3. Deploys PostgreSQL database for Authentik data storage
+# 4. Deploys Redis cache for session management
+# 5. Deploys Authentik SSO server with initial configuration
+# 6. Configures Traefik authentication middleware
+# 7. Verifies service deployment and accessibility
+#
+# Idempotent Design:
+# - Safe to run multiple times
+# - Preserves existing Authentik configuration and data
+# - Handles configuration updates gracefully
+# - Works with existing Authentik deployments
+#
+# Manual Configuration Required:
+# - Complete Authentik initial setup via web interface
+# - Configure user groups (admins, operators, family)
+# - Create OIDC applications for services (Grafana, Homarr)
+# - User account creation and group assignment
+# - Manually redeploy all service playbooks with auth_enabled: true
+#
+# Usage:
+# ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-authentik.yml --ask-vault-pass
+#
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# deployment and configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 - name: Deploy Authentik SSO Infrastructure
@@ -86,9 +109,9 @@
               🚀 Ready to proceed with Authentik deployment
 
   tasks:
-    # ==========================================================================
-    # AUTHENTIK INFRASTRUCTURE DEPLOYMENT
-    # ==========================================================================
+    # =============================================================================
+    # SETUP: Authentik Infrastructure Setup
+    # =============================================================================
     - name: "Authentik Infrastructure Deployment"
       debug:
         msg: |
@@ -110,9 +133,9 @@
           
           🚀 Starting Authentik infrastructure deployment...
 
-    # ==========================================================================
-    # TRAEFIK DYNAMIC CONFIGURATION
-    # ==========================================================================
+    # =============================================================================
+    # TRAEFIK: Dynamic Authentication Configuration
+    # =============================================================================
     - name: "⚙️ Create Traefik Dynamic Authentication Configuration"
       block:
         - name: Create Traefik dynamic configuration directory
@@ -149,9 +172,9 @@
               
               🔄 Traefik will automatically reload the configuration.
 
-    # ==========================================================================
-    # AUTHENTIK INFRASTRUCTURE DEPLOYMENT
-    # ==========================================================================
+    # =============================================================================
+    # DEPLOY: Authentik Infrastructure Deployment
+    # =============================================================================
     - name: "🚀 Deploy Authentik Infrastructure"
       block:
         - name: Configure system settings for Redis
@@ -325,45 +348,16 @@
 
 
 
-    # ==========================================================================
-    # POST-DEPLOYMENT SUMMARY AND NEXT STEPS
-    # ==========================================================================
+    # =============================================================================
+    # SUMMARY: Deployment Summary and Next Steps
+    # =============================================================================
     - name: "📋 Deployment Summary and Next Steps"
       debug:
         msg: |
-          
-          🎉 AUTHENTIK SSO INFRASTRUCTURE DEPLOYMENT COMPLETE
-          =================================================
-          
-          📊 DEPLOYMENT SUMMARY:
-          
-          🚀 Infrastructure Deployed:
-          ✅ Authentik SSO Server
-          ✅ PostgreSQL Database  
-          ✅ Redis Cache
-          ✅ Traefik Authentication Middleware
-          
-          🌐 Access URL: https://auth.{{ base_domain }}
-          🔧 Initial Setup: https://auth.{{ base_domain }}/if/flow/initial-setup/
-          
-          🔧 REQUIRED NEXT STEPS:
-          
-          1. 🌐 Complete Authentik Initial Setup:
-             - Visit: https://auth.{{ base_domain }}/if/flow/initial-setup/
-             - Create your admin username and password
-             - Follow the setup wizard
-             
-          2. 👥 Configure Authentication (in Authentik web interface):
-             - Create user groups: admins, operators, family
-             - Add users and assign to groups
-             - Create OIDC applications for Grafana and Homarr
-             
-          3. 🚀 Deploy Services with Authentication:
-             Run: ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-services-with-auth.yml --ask-vault-pass
-          
-          📚 Documentation: ansible-docs/phase-5/deploy-authentik.md
-          
-          ⚠️  IMPORTANT: Complete steps 1-2 before running deploy-services-with-auth.yml
+          ✅ Authentik SSO infrastructure deployed successfully
+          🔐 SSO Server: https://auth.{{ base_domain }}
+          🛠️ Initial Setup: https://auth.{{ base_domain }}/if/flow/initial-setup/
+          ⚠️  Complete initial setup, configure user groups, and create OIDC applications
 
   handlers:
     - name: reload traefik

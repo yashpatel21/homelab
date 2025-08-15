@@ -490,88 +490,10 @@
     - name: "Summary - Final deployment summary"
       debug:
         msg: |
-          ============================================================
-          🛡️ ADGUARD HOME DEPLOYMENT SUMMARY
-          ============================================================
-          
-          📁 Service Directory: {{ data_directory }}/{{ service_name }}
-          📋 Compose File: {{ compose_file }}
-          🔧 SSL Certificate Resolver: {{ ssl_cert_resolver }}
-          
-          🌐 Service Access URLs:
-          • AdGuard Home Direct: http://{{ ubuntu_server_ip }}:3000
-          • AdGuard Home (SSL): https://adguard.{{ base_domain }}
-          • DNS Service: {{ ubuntu_server_ip }}:53
-          
-          📊 Service Status:
-          {% if web_direct_test is defined and web_traefik_test is defined and dns_test is defined %}
-          • Direct Access: {{ '✅ Accessible' if web_direct_test.status == 200 else '❌ Not accessible' }}
-          • Traefik Access: {{ '✅ Accessible' if web_traefik_test.status == 200 else '❌ Not accessible' }}
-          • DNS Resolution: {{ '✅ Working' if dns_test.rc == 0 else '❌ Failed' }}
-          {% else %}
-          • Service verification: ✅ Verified during playbook execution
-          {% endif %}
-          
-          🔧 DNS Configuration:
-          • systemd-resolved: ✅ Configured for AdGuard Home
-          • Port 53: ✅ Available for AdGuard Home
-          • DNS Forwarding: ⚠️  Requires manual OPNsense configuration
-          
-          🔄 Failover Configuration:
-          {% if has_ntfy_token %}
-          • OPNsense Failover: ✅ Script deployed with NTFY notifications
-          {% else %}
-          • OPNsense Failover: ❌ Skipped (NTFY token not available)
-          {% endif %}
-          
-          🔧 Service Management Commands:
-          • View logs: docker compose -f {{ compose_file }} logs -f
-          • Restart: docker compose -f {{ compose_file }} restart
-          • Stop: docker compose -f {{ compose_file }} down
-          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
-          
-          📝 Manual Configuration Required:
-          1. **Initial Setup**: Access https://adguard.{{ base_domain }} and complete setup wizard
-          2. **DNS Configuration**: Configure upstream DNS servers and blocklists
-          3. **OPNsense Setup**: Configure DNS forwarding in OPNsense (see documentation)
-          4. **Network Setup**: Update DHCP to use AdGuard Home as DNS server
-          
-          📖 Configuration Steps:
-          • Admin Password: Set during initial setup wizard
-          • DNS Settings: Configure upstream DNS servers (1.1.1.1, 9.9.9.9)
-          • Blocklists: Add DNS blocklists for ad blocking
-          • Private DNS: Configure for local domain resolution
-          
-          🚀 Next Steps:
-          1. Complete AdGuard Home initial setup via web interface
-          2. Configure DNS blocklists for ad blocking
-          3. Update OPNsense DNS forwarding configuration
-          4. Test DNS filtering and ad blocking functionality
-          5. Proceed to Phase 3 supporting services deployment
-          
-          ============================================================
+          ✅ AdGuard Home DNS filtering service deployed successfully
+          🌐 Web interface: https://adguard.{{ base_domain }}
+          ⚠️  Complete initial setup wizard and configure DNS forwarding in OPNsense
 
 
-    - name: "Summary - Service management reminder"
-      debug:
-        msg: |
-          💡 USEFUL COMMANDS:
-          
-          # Check service status
-          docker compose -f {{ compose_file }} ps
-          
-          # View logs
-          docker compose -f {{ compose_file }} logs -f adguard
-          
-          # Test DNS resolution
-          nslookup google.com {{ ubuntu_server_ip }}
-          
-          # Test DNS blocking (should be blocked after setup)
-          nslookup doubleclick.net {{ ubuntu_server_ip }}
-          
-          # Check DNS port usage
-          netstat -tulpn | grep :53
-          
-          # Access AdGuard Home
-          https://adguard.{{ base_domain }}
+
  

@@ -86,7 +86,6 @@
       debug:
         msg: "Docker Compose file created at: {{ compose_file }}"
 
-
     # =============================================================================
     # DEPLOY: Service Deployment and Management
     # =============================================================================
@@ -176,7 +175,6 @@
         - 443   # HTTPS
         - 8080  # Traefik Dashboard
 
-
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
     # =============================================================================
@@ -232,7 +230,6 @@
           ✅ SSL certificates found in acme.json
           {% endif %}
 
-
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
     # =============================================================================
@@ -240,68 +237,10 @@
     - name: "Summary - Deployment results"
       debug:
         msg: |
-          ============================================================
-          🚀 TRAEFIK DEPLOYMENT SUMMARY
-          ============================================================
-          
-          📁 Service Directory: {{ data_directory }}/{{ service_name }}
-          📋 Compose File: {{ compose_file }}
-          🔧 SSL Certificate Resolver: {{ ssl_cert_resolver }}
-          
-          🌐 Service Access URLs:
-          • Traefik Dashboard: http://{{ ubuntu_server_ip }}:8080
-          • Traefik Dashboard (SSL): https://traefik.{{ base_domain }}
-          • Whoami Test Service: https://whoami.{{ base_domain }}
-          
-          📊 Service Status:
-          {% if dashboard_test is defined and whoami_test is defined and ssl_cert_check is defined %}
-          • Dashboard API: {{ '✅ Accessible' if dashboard_test.status == 200 else '❌ Not accessible' }}
-          • Whoami Service: {{ '✅ Accessible' if whoami_test.status == 200 else '❌ Not accessible' }}
-          • SSL Certificates: {{ '✅ Generated' if not ssl_cert_check.failed else '🔄 Generating...' }}
-          {% else %}
-          • Service verification: ✅ Verified during playbook execution
-          {% endif %}
-          
-          🔧 Service Management Commands:
-          • View logs: docker compose -f {{ compose_file }} logs -f
-          • Restart: docker compose -f {{ compose_file }} restart
-          • Stop: docker compose -f {{ compose_file }} down
-          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
-          
-          📝 Next Steps:
-          1. Access Traefik dashboard at http://{{ ubuntu_server_ip }}:8080
-          2. Test SSL access at https://traefik.{{ base_domain }}
-          3. Verify whoami service at https://whoami.{{ base_domain }}
-          4. SSL certificates will generate automatically on first HTTPS access
-          
-          ⚠️  SSL Certificate Notes:
-          • Initial certificate generation may take 1-2 minutes
-          • If certificates don't generate, check Cloudflare API token
-          • Use 'openssl s_client -connect traefik.{{ base_domain }}:443' to test SSL
-          
-          ============================================================
+          ✅ Traefik reverse proxy deployed successfully
+          🌐 Dashboard: https://traefik.{{ base_domain }}
+          🔧 Service management: docker compose -f {{ compose_file }} logs -f
 
 
-    - name: "Summary - Service management reminder"
-      debug:
-        msg: |
-          💡 USEFUL COMMANDS:
-          
-          # Check service status
-          docker compose -f {{ compose_file }} ps
-          
-          # View logs
-          docker compose -f {{ compose_file }} logs -f traefik
-          
-          # Restart service
-          docker compose -f {{ compose_file }} restart
-          
-          # Force SSL certificate regeneration
-          sudo rm {{ data_directory }}/{{ service_name }}/acme/acme.json
-          sudo touch {{ data_directory }}/{{ service_name }}/acme/acme.json
-          sudo chmod 600 {{ data_directory }}/{{ service_name }}/acme/acme.json
-          docker compose -f {{ compose_file }} restart traefik
-          
-          # Test SSL certificate
-          openssl s_client -connect traefik.{{ base_domain }}:443 -servername traefik.{{ base_domain }}
+
  

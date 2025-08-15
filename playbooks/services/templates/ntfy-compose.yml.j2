@@ -1,3 +1,19 @@
+---
+# =============================================================================
+# NTFY Notification Service
+# =============================================================================
+# 
+# This Docker Compose file deploys NTFY notification service with:
+# - Push notifications for homelab monitoring
+# - Traefik reverse proxy integration with SSL
+# - Authentication support via Authentik (optional)
+# - Internal access for scripts and monitoring
+# - WUD labels for update notifications
+# - Persistent cache and configuration storage
+#
+# Generated from Ansible template: ntfy-compose.yml.j2
+# =============================================================================
+
 services:
   ntfy:
     image: binwiederhier/ntfy:v2.14.0

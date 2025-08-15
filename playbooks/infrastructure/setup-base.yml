@@ -3,8 +3,8 @@
 # PHASE 1: Infrastructure Foundation - Base System Setup
 # =============================================================================
 # 
-# This playbook handles the fundamental system configuration for both Proxmox
-# host and Ubuntu server after initial setup and SSH access is configured.
+# This playbook handles the fundamental system configuration for Ubuntu
+# server after initial setup and SSH access is configured.
 #
 # Prerequisites:
 # - Complete infrastructure setup from prerequisites.md
@@ -17,16 +17,18 @@
 # 2. Installs essential utilities for system management
 # 3. Sets up timezone, locale and automatic updates
 #
-# Manual steps required BEFORE running this playbook:
-# - Complete ALL tasks in prerequisites.md
+# Idempotent Design:
+# - Safe to run multiple times
+# - Preserves existing configuration
+# - Handles package updates gracefully
+# - Works with existing system setup
 #
-# HOW TO RUN THIS PLAYBOOK:
+# Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-base.yml --ask-vault-pass
 #
-# =============================================================================
-
-# =============================================================================
-# UBUNTU SERVER CONFIGURATION
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# base system configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 - name: "Phase 1.1 - Ubuntu Server Base System Setup"
@@ -67,16 +69,6 @@
         state: present
 
     # -------------------------------------------------------------------------
-    # USER MANAGEMENT
-    # -------------------------------------------------------------------------
-    # Note: Ubuntu user is created during OS installation (prerequisites.md section 3.3)
-    # and sudo configuration is handled in prerequisites.md section 5.3.
-    # SSH key authentication is set up via ssh-copy-id in prerequisites.md.
-    # No user management tasks needed in this playbook.
-
-
-
-    # -------------------------------------------------------------------------
     # SYSTEM CONFIGURATION
     # -------------------------------------------------------------------------
 
@@ -115,37 +107,5 @@
         - { regexp: "^APT::Periodic::Update-Package-Lists", line: "APT::Periodic::Update-Package-Lists \"1\";" }
         - { regexp: "^APT::Periodic::Unattended-Upgrade", line: "APT::Periodic::Unattended-Upgrade \"1\";" }
 
-  # ---------------------------------------------------------------------------
-  # HANDLERS
-  # ---------------------------------------------------------------------------
-
   handlers:
-    # No handlers needed for current tasks
-
-# =============================================================================
-# PLAYBOOK EXECUTION SUMMARY
-# =============================================================================
-#
-# This playbook completes the base system setup for your homelab infrastructure.
-# 
-# Execution Order:
-# 1. Ubuntu Server: Package updates, system configuration
-#
-# What was configured:
-# ✅ Ubuntu system packages updated and essential utilities installed
-# ✅ Ubuntu system timezone and locale configured
-# ✅ Ubuntu automatic security updates enabled
-#
-# Prerequisites (completed in prerequisites.md):
-# ✅ Infrastructure setup (Proxmox installation, Ubuntu VM creation)
-# ✅ Admin user creation via web interfaces
-# ✅ SSH access enabled on all hosts
-# ✅ SSH key authentication configured (ssh-copy-id)
-# ✅ Passwordless sudo configured for Ubuntu user
-#
-# Next steps:
-# 1. Verify SSH key authentication works to all hosts
-# 2. Test sudo access for configured users
-# 3. Proceed to setup-storage.yml playbook
-#
-# ============================================================================= 
+    # No handlers needed for current tasks 

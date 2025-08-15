@@ -14,22 +14,25 @@
 # What this playbook does:
 # 1. Configures Proxmox host 2TB storage (formatting, mounting at /storage)
 # 2. Configures Ubuntu server 2TB storage (formatting, mounting at /storage)
-# 3. Creates /data directory structure on Ubuntu with proper permissions:
-#    - /data/scripts subdirectory for system and monitoring scripts
-#    - /data/compose subdirectory for all Docker Compose files
+# 3. Creates /data directory structure on Ubuntu with proper permissions
 # 4. Verifies all storage configurations
 #
-# Manual steps required BEFORE running this playbook:
-# - Complete ALL tasks in prerequisites.md
-# - Run setup-base.yml playbook first
+# Idempotent Design:
+# - Safe to run multiple times
+# - Preserves existing storage configuration
+# - Handles drive mounting gracefully
+# - Works with existing storage setups
 #
-# HOW TO RUN THIS PLAYBOOK:
+# Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-storage.yml --ask-vault-pass
 #
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# storage configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 # =============================================================================
-# PROXMOX HOST STORAGE CONFIGURATION (Run First)
+# PROXMOX STORAGE: Host Storage Configuration
 # =============================================================================
 
 - name: "Phase 1.2 - Proxmox Host Storage Setup"
@@ -109,7 +112,7 @@
 
 
 # =============================================================================
-# UBUNTU SERVER STORAGE CONFIGURATION (Run After Proxmox)
+# UBUNTU STORAGE: Server Storage Configuration
 # =============================================================================
 
 - name: "Phase 1.2 - Ubuntu Server Storage Setup"
@@ -234,34 +237,4 @@
   # ---------------------------------------------------------------------------
 
   handlers:
-    # No handlers needed for current tasks
-
-# =============================================================================
-# PLAYBOOK EXECUTION SUMMARY
-# =============================================================================
-#
-# This playbook completes the storage setup for your homelab infrastructure.
-# 
-# Execution Order:
-# 1. Proxmox Host: 2TB storage configuration (format/mount at /storage)
-# 2. Ubuntu Server: 2TB storage configuration (format/mount at /storage)
-# 3. Ubuntu Server: /data directory and /data/scripts subdirectory creation with proper permissions
-#
-# What was configured:
-# ✅ Proxmox host storage devices formatted and mounted (/storage)
-# ✅ Ubuntu server storage devices formatted and mounted (/storage)
-# ✅ Ubuntu /data directory structure created:
-#     - /data/scripts subdirectory for system and monitoring scripts
-#     - /data/compose subdirectory for all Docker Compose files
-# ✅ All directories have proper ownership and permissions
-#
-# Prerequisites (completed before this playbook):
-# ✅ Infrastructure setup (Proxmox installation, Ubuntu VM creation)
-# ✅ Base system setup (packages, SSH, users, system configuration)
-#
-# Next steps:
-# 1. Verify storage is properly mounted on both hosts
-# 2. Test directory permissions and ownership
-# 3. Proceed to setup-docker.yml playbook
-#
-# ============================================================================= 
+    # No handlers needed for current tasks 

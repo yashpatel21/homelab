@@ -1,6 +1,20 @@
 ---
+# =============================================================================
 # Prometheus + Grafana Monitoring Stack
-# Complete monitoring solution for homelab infrastructure
+# =============================================================================
+# 
+# This Docker Compose file deploys monitoring infrastructure with:
+# - Prometheus for metrics collection and storage
+# - Grafana for visualization dashboards
+# - Node Exporter for system metrics
+# - cAdvisor for container metrics
+# - AdGuard Exporter for DNS analytics
+# - OPNsense Exporter for firewall metrics
+# - OIDC integration with Authentik for Grafana SSO (optional)
+# - WUD labels for update notifications
+#
+# Generated from Ansible template: prometheus-grafana-compose.yml.j2
+# =============================================================================
 services:
   # ===========================================================================
   # PROMETHEUS - Metrics Collection and Storage

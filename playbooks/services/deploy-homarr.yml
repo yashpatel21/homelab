@@ -198,64 +198,10 @@
     - name: "Summary - Final deployment summary"
       debug:
         msg: |
-          ============================================================
-          📊 HOMARR DEPLOYMENT SUMMARY
-          ============================================================
-          
-          📁 Service Directory: {{ data_directory }}/{{ service_name }}
-          📋 Compose File: {{ compose_file }}
-          🔧 SSL Certificate Resolver: {{ ssl_cert_resolver }}
-          
-          🌐 Service Access URLs:
-          • Homarr Dashboard (HTTPS): https://{{ base_domain }}
-          
-          📊 Service Status:
-          {% if traefik_access_test is defined and running_containers is defined %}
-          • Traefik Access: {{ '✅ Accessible' if traefik_access_test.status == 200 else '❌ Not accessible' }}
-          • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
-          {% else %}
-          • Service verification: ✅ Verified during playbook execution
-          {% endif %}
-          
-          🔧 Service Management Commands:
-          • View logs: docker compose -f {{ compose_file }} logs -f
-          • Restart: docker compose -f {{ compose_file }} restart
-          • Stop: docker compose -f {{ compose_file }} down
-          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
-          
-          📝 Manual Configuration Required:
-          1. **Proxmox API Integration**: Verify API token is working in dashboard
-          2. **Service Tiles**: Add tiles for all homelab services
-          3. **Dashboard Layout**: Configure widgets and customize appearance
-          4. **System Monitoring**: Set up hardware monitoring widgets
-          
-          🚀 Next Steps:
-          1. Access Homarr dashboard at https://{{ base_domain }}
-          2. Configure service tiles for all deployed services
-          3. Set up Proxmox integration widgets
-          4. Customize dashboard layout and appearance
-          5. Deploy other Phase 3 services as needed (Uptime Kuma, WUD)
-          
-          ============================================================
+          ✅ Homarr dashboard deployed successfully
+          🏠 Dashboard: https://{{ base_domain }}
+          ⚠️  Configure service tiles, widgets, and Proxmox API integration
 
 
-    - name: "Summary - Service management reminder"
-      debug:
-        msg: |
-          💡 USEFUL COMMANDS:
-          
-          # Check service status
-          docker compose -f {{ compose_file }} ps
-          
-          # View logs
-          docker compose -f {{ compose_file }} logs -f homarr
-          
-          # Restart service
-          docker compose -f {{ compose_file }} restart
-          
-          # Access service
-          https://{{ base_domain }}
-          
-          # Check container resource usage
-          docker stats homarr
+
  

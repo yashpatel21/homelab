@@ -1,3 +1,19 @@
+---
+# =============================================================================
+# Homarr Dashboard Service
+# =============================================================================
+# 
+# This Docker Compose file deploys Homarr dashboard with:
+# - Unified homelab service dashboard
+# - Docker socket access for service monitoring
+# - Traefik reverse proxy integration with SSL  
+# - OIDC integration with Authentik for SSO (optional)
+# - WUD labels for update notifications
+# - Persistent configuration storage
+#
+# Generated from Ansible template: homarr-compose.yml.j2
+# =============================================================================
+
 services:
   homarr:
     container_name: homarr

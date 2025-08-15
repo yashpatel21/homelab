@@ -21,13 +21,6 @@
 # 4. Configures persistent data volumes for Prometheus and Grafana
 # 5. Verifies all monitoring services and exporters
 #
-# Monitoring Components:
-# - Prometheus: Metrics collection and storage
-# - Grafana: Visualization dashboards
-# - Node Exporter: Ubuntu VM system metrics
-# - cAdvisor: Docker container metrics
-# - AdGuard Exporter: DNS analytics and statistics
-#
 # Idempotent Design:
 # - Safe to run multiple times
 # - Preserves existing Prometheus and Grafana data
@@ -427,92 +420,11 @@
     - name: "Summary - Final deployment summary"
       debug:
         msg: |
-          ============================================================
-          📊 PROMETHEUS + GRAFANA MONITORING STACK DEPLOYMENT SUMMARY
-          ============================================================
-          
-          📁 Service Directory: {{ data_directory }}/{{ service_name }}
-          📋 Compose File: {{ compose_file }}
-          ⚙️ Prometheus Config: {{ prometheus_config_file }}
-          🔧 SSL Certificate Resolver: {{ ssl_cert_resolver }}
-          
-          🌐 Service Access URLs:
-          • Prometheus (HTTPS): https://prometheus.{{ base_domain }}
-          • Grafana (HTTPS): https://grafana.{{ base_domain }}
-          
-          📊 Monitoring Components Deployed:
-          • Prometheus Server: Metrics collection and storage
-          • Grafana: Visualization dashboards
-          • Node Exporter: Ubuntu VM system metrics (CPU, RAM, disk, etc.)
-          • cAdvisor: Docker container resource metrics
-          • AdGuard Exporter: DNS analytics and query statistics
-          
-          📊 Service Status:
-          {% if prometheus_access_test is defined and grafana_access_test is defined and running_containers is defined %}
-          • Prometheus Access: {{ '✅ Accessible' if prometheus_access_test.status == 200 else '❌ Not accessible' }}
-          • Grafana Access: {{ '✅ Accessible' if grafana_access_test.status == 200 else '❌ Not accessible' }}
-          • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
-          {% else %}
-          • Service verification: ✅ Verified during playbook execution
-          {% endif %}
-          
-          🔧 Service Management Commands:
-          • View logs: docker compose -f {{ compose_file }} logs -f
-          • Restart: docker compose -f {{ compose_file }} restart
-          • Stop: docker compose -f {{ compose_file }} down
-          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
-          
-          📊 Monitoring Endpoints:
-          • Prometheus: https://prometheus.{{ base_domain }}
-          • Grafana: https://grafana.{{ base_domain }}
-          • Node Exporter: http://{{ ubuntu_server_ip }}:9100/metrics
-          • cAdvisor: http://{{ ubuntu_server_ip }}:8081/metrics
-          • AdGuard Exporter: http://{{ ubuntu_server_ip }}:9618/metrics
-          
-          📝 Manual Configuration Required:
-          1. **OPNsense Node Exporter**: Install plugin in OPNsense web interface
-          2. **Grafana Setup**: Complete initial setup wizard and dashboard imports
-          3. **Dashboard Configuration**: Import recommended dashboard IDs
-          4. **Prometheus Targets**: Verify all targets are being scraped successfully
-          
-          🚀 Next Steps:
-          1. Complete OPNsense Node Exporter plugin installation
-          2. Access Grafana web interface at https://grafana.{{ base_domain }}
-          3. Complete Grafana initial setup (admin user: admin, password from vault)
-          4. Import recommended dashboards for comprehensive monitoring
-          5. Verify all Prometheus targets are active and healthy
-          6. Configure alerting rules and notification channels as needed
-          
-          ============================================================
+          ✅ Prometheus + Grafana monitoring stack deployed successfully
+          📊 Prometheus: https://prometheus.{{ base_domain }}
+          📈 Grafana: https://grafana.{{ base_domain }} (admin/{{ vault_grafana_admin_password }})
+          ⚠️  Complete OPNsense Node Exporter plugin installation and Grafana setup wizard
 
 
-    - name: "Summary - Service management reminder"
-      debug:
-        msg: |
-          💡 USEFUL COMMANDS:
-          
-          # Check all monitoring services status
-          docker compose -f {{ compose_file }} ps
-          
-          # View logs for specific service
-          docker compose -f {{ compose_file }} logs -f prometheus
-          docker compose -f {{ compose_file }} logs -f grafana
-          
-          # Access monitoring interfaces
-          https://prometheus.{{ base_domain }}
-          https://grafana.{{ base_domain }}
-          
-          # Check Prometheus targets
-          curl -s https://prometheus.{{ base_domain }}/api/v1/targets | jq '.data.activeTargets[].health'
-          
-          # Test individual exporters
-          curl http://{{ ubuntu_server_ip }}:9100/metrics   # Node Exporter
-          curl http://{{ ubuntu_server_ip }}:8081/metrics   # cAdvisor
-          curl http://{{ ubuntu_server_ip }}:9618/metrics   # AdGuard Exporter
-          
-          # Restart specific service
-          docker compose -f {{ compose_file }} restart SERVICE_NAME
-          
-          # Check container resource usage
-          docker stats prometheus grafana cadvisor node-exporter adguard-exporter
+
  

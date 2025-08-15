@@ -1,3 +1,19 @@
+---
+# =============================================================================
+# Uptime Kuma Monitoring Service
+# =============================================================================
+# 
+# This Docker Compose file deploys Uptime Kuma with:
+# - Service uptime monitoring and alerting
+# - Docker socket access for container monitoring
+# - Traefik reverse proxy integration with SSL
+# - Forward authentication via Authentik (optional)
+# - WUD labels for update notifications
+# - Persistent data storage for monitoring history
+#
+# Generated from Ansible template: uptime-kuma-compose.yml.j2
+# =============================================================================
+
 services:
   uptime-kuma:
     image: louislam/uptime-kuma:1.23.16

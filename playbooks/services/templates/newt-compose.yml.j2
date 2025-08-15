@@ -1,3 +1,18 @@
+---
+# =============================================================================
+# Newt Tunneling Client
+# =============================================================================
+# 
+# This Docker Compose file deploys Newt client with:
+# - Secure tunnel client for Pangolin server
+# - Encrypted tunnel without port forwarding
+# - WUD labels for update notifications
+# - Homelab network integration
+# - Environment-based authentication
+#
+# Generated from Ansible template: newt-compose.yml.j2
+# =============================================================================
+
 services:
   newt:
     image: fosrl/newt:1.4.0

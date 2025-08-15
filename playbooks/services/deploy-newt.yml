@@ -23,6 +23,11 @@
 # - Preserves existing tunnel configurations
 # - Handles credential updates gracefully
 #
+# Manual Configuration Required:
+# - Pangolin server setup and configuration
+# - Newt credentials (ID and secret) in vault.yml
+# - Pangolin routing configuration for homelab services
+#
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-newt.yml --ask-vault-pass
 #
@@ -155,59 +160,7 @@
     - name: "Summary - Deployment results"
       debug:
         msg: |
-          ============================================================
-          🚀 NEWT TUNNELING CLIENT DEPLOYMENT SUMMARY
-          ============================================================
-          
-          📁 Service Directory: {{ data_directory }}/{{ service_name }}
-          📋 Compose File: {{ compose_file }}
-          🔗 Pangolin Endpoint: {{ vault_pangolin_endpoint }}
-          
-          🌐 Tunnel Configuration:
-          • Newt ID: {{ vault_newt_id[:8] }}...
-          • Connection Status: Check logs above
-          
-          📊 Service Status:
-          • Container: {{ 'Running' if running_containers.stdout else 'Starting' }}
-          • Tunnel: Check logs for connection establishment
-          
-          🔧 Service Management Commands:
-          • View logs: docker compose -f {{ compose_file }} logs -f
-          • Restart: docker compose -f {{ compose_file }} restart
-          • Stop: docker compose -f {{ compose_file }} down
-          • Update: docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
-          
-          📝 Next Steps:
-          1. Monitor Newt logs for successful Pangolin connection
-          2. Verify tunnel establishment: docker logs newt
-          3. Test external access through Pangolin tunnels
-          4. Configure Pangolin routing for homelab services
-          
-          ⚠️  Tunnel Connection Notes:
-          • Initial tunnel establishment may take 1-2 minutes
-          • Check Pangolin server status if connection fails
-          • Verify Newt credentials in vault.yml if authentication fails
-          
-          ============================================================
-    - name: "Summary - Service management reminder"
-      debug:
-        msg: |
-          💡 USEFUL COMMANDS:
-          
-          # Check Newt status
-          docker compose -f {{ compose_file }} ps
-          
-          # View tunnel logs
-          docker compose -f {{ compose_file }} logs -f newt
-          
-          # Check connection status
-          docker logs newt --tail 50
-          
-          # Restart tunnel service
-          docker compose -f {{ compose_file }} restart
-          
-          # Test tunnel connectivity
-          # (Commands depend on Pangolin server configuration)
-          
-          # Update Newt client
-          docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
+          ✅ Newt tunneling client deployed successfully
+          🔗 Tunnel endpoint: {{ vault_pangolin_endpoint }}
+          ⚠️  Monitor logs for tunnel connection and configure Pangolin routing
+

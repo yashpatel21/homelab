@@ -268,8 +268,6 @@
                   
                   ✅ All files and directories in Redis data folder now have correct ownership (999:999)
                   🔒 This prevents Redis background saving errors and container health issues
-          tags:
-            - permissions
 
         - name: Generate Authentik Docker Compose configuration
           template:

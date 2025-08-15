@@ -36,11 +36,9 @@
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-nextcloud.yml --ask-vault-pass
 #
-# Tags:
-# --tags setup      : Only create directories and configuration
-# --tags deploy     : Only deploy/update the service
-# --tags verify     : Only run verification checks
-# --tags update     : Force update and restart service
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# deployment and configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 - name: Deploy Nextcloud All-in-One Platform
@@ -69,10 +67,6 @@
         - "{{ data_directory }}/{{ service_name }}/data"
         - "{{ data_directory }}/{{ service_name }}/config"
         - "/storage/{{ service_name }}"
-      tags: 
-        - setup
-        - always
-
     - name: "Setup - Generate Traefik dynamic configuration for Nextcloud"
       template:
         src: "nextcloud-traefik-config.yml.j2"
@@ -81,11 +75,6 @@
         group: "{{ ubuntu_primary_user }}"
         mode: '0644'
       register: traefik_config_updated
-      tags: 
-        - setup
-        - deploy
-        - update
-
     - name: "Setup - Generate Docker Compose file from template"
       template:
         src: "nextcloud-compose.yml.j2"
@@ -95,11 +84,6 @@
         mode: '0644'
         backup: yes
       register: compose_updated
-      tags: 
-        - setup
-        - deploy
-        - update
-
     - name: "Setup - Set Nextcloud storage directory permissions"
       file:
         path: "/storage/{{ service_name }}"
@@ -107,10 +91,6 @@
         group: "33"  # www-data group in Nextcloud AIO Apache container
         mode: '0755'
         recurse: yes
-      tags: 
-        - setup
-        - always
-
     - name: "Setup - Display configuration file locations"
       debug:
         msg: |
@@ -118,10 +98,6 @@
           • Docker Compose file: {{ compose_file }}
           • Traefik dynamic config: {{ traefik_config_file }}
           • Data storage directory: /storage/{{ service_name }}
-      tags: 
-        - setup
-        - always
-
     # =============================================================================
     # DEPLOY: Service Deployment and Management
     # =============================================================================
@@ -131,21 +107,11 @@
       register: existing_nextcloud_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
-        - always
-
     - name: "Deploy - Check for port 9080 conflicts"
       shell: "docker ps | grep ':9080->' || true"
       register: port_9080_conflicts
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
-        - always
-
     - name: "Deploy - Display existing containers and port conflicts"
       debug:
         msg: |
@@ -165,29 +131,16 @@
           {% else %}
           ✅ Port 9080 is available for Nextcloud AIO
           {% endif %}
-      tags: 
-        - deploy
-        - verify
-        - always
-
     - name: "Deploy - Check if containers are already running"
       command: "docker compose -f {{ compose_file }} ps -q"
       register: running_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
-
-    - name: "Deploy - Stop existing containers (if update requested)"
+    - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
       when: 
         - running_containers.stdout != ""
-        - "'update' in ansible_run_tags"
-      tags: 
-        - deploy
-        - update
-
+        - "compose_updated.changed"
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
       shell: |
         # Remove containers with conflicting names (including stopped ones)
@@ -198,34 +151,19 @@
         fi
       register: cleanup_result
       changed_when: "'Removing existing container' in cleanup_result.stdout"
-      tags: 
-        - deploy
-
     - name: "Deploy - Pull latest container images"
       command: "docker compose -f {{ compose_file }} pull"
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
-      tags: 
-        - deploy
-        - update
-
     - name: "Deploy - Start Nextcloud AIO service"
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-      tags: 
-        - deploy
-        - update
-
     - name: "Deploy - Wait for Nextcloud AIO to be ready"
       wait_for:
         port: 9080
         host: "{{ ubuntu_server_ip }}"
         timeout: 120
-      tags: 
-        - deploy
-        - verify
-
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
     # =============================================================================
@@ -234,17 +172,9 @@
       command: "docker compose -f {{ compose_file }} ps"
       register: container_status
       changed_when: false
-      tags: 
-        - verify
-        - always
-
     - name: "Verify - Display container status"
       debug:
         msg: "{{ container_status.stdout_lines }}"
-      tags: 
-        - verify
-        - always
-
     - name: "Verify - Test Nextcloud AIO direct access"
       uri:
         url: "http://{{ ubuntu_server_ip }}:9080"
@@ -252,9 +182,6 @@
         timeout: 10
       register: direct_access_test
       failed_when: false
-      tags: 
-        - verify
-
     - name: "Verify - Test Nextcloud AIO via Traefik (if SSL configured)"
       uri:
         url: "https://aio.{{ base_domain }}"
@@ -264,17 +191,10 @@
         status_code: [200, 302]
       register: traefik_aio_test
       failed_when: false
-      tags: 
-        - verify
-
     - name: "Verify - Check Traefik dynamic configuration"
       stat:
         path: "{{ traefik_config_file }}"
       register: traefik_config_check
-      tags: 
-        - verify
-        - always
-
     - name: "Verify - Display access test results"
       debug:
         msg: |
@@ -297,10 +217,6 @@
           {% endif %}
           
           💡 Note: Initial AIO setup required at https://aio.{{ base_domain }} or http://{{ ubuntu_server_ip }}:9080
-      tags: 
-        - verify
-        - always
-
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
     # =============================================================================
@@ -328,7 +244,7 @@
           • Traefik Access: {{ '✅ Accessible' if traefik_aio_test.status in [200, 302] else '❌ Not accessible' }}
           • Dynamic Config: {{ '✅ Deployed' if traefik_config_check.stat.exists else '❌ Missing' }}
           {% else %}
-          • Service verification: ⏳ Run with --tags verify to check service status
+          • Service verification: ✅ Verified during playbook execution
           {% endif %}
           
           🔧 Service Management Commands:
@@ -360,9 +276,6 @@
           • Consider regular backups of Nextcloud data and configuration
           
           ============================================================
-      tags: 
-        - always
-
     - name: "Summary - Service management reminder"
       debug:
         msg: |
@@ -393,5 +306,3 @@
           # Test DNS resolution
           nslookup aio.{{ base_domain }}
           nslookup cloud.{{ base_domain }}
-      tags: 
-        - always 

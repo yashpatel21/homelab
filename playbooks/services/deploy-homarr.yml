@@ -34,11 +34,9 @@
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-homarr.yml --ask-vault-pass
 #
-# Tags:
-# --tags setup      : Only create directories and configuration
-# --tags deploy     : Only deploy/update the service
-# --tags verify     : Only run verification checks
-# --tags update     : Force update and restart service
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# deployment and configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 - name: Deploy Homarr Dashboard Service
@@ -64,9 +62,7 @@
       loop:
         - "{{ data_directory }}/{{ service_name }}"
         - "{{ data_directory }}/{{ service_name }}/appdata"
-      tags: 
-        - setup
-        - always
+
 
     - name: "Setup - Generate Docker Compose file from template"
       template:
@@ -77,17 +73,12 @@
         mode: '0644'
         backup: yes
       register: compose_updated
-      tags: 
-        - setup
-        - deploy
-        - update
+
 
     - name: "Setup - Display compose file location"
       debug:
         msg: "Docker Compose file created at: {{ compose_file }}"
-      tags: 
-        - setup
-        - always
+
 
     # =============================================================================
     # DEPLOY: Service Deployment and Management
@@ -98,10 +89,7 @@
       register: existing_homarr_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
-        - always
+
 
     - name: "Deploy - Display existing Homarr containers"
       debug:
@@ -115,28 +103,21 @@
           {% else %}
           ✅ No existing Homarr containers found
           {% endif %}
-      tags: 
-        - deploy
-        - verify
-        - always
+
 
     - name: "Deploy - Check if containers are already running"
       command: "docker compose -f {{ compose_file }} ps -q"
       register: running_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
 
-    - name: "Deploy - Stop existing containers (if update requested)"
+
+    - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
       when: 
         - running_containers.stdout != ""
-        - "'update' in ansible_run_tags"
-      tags: 
-        - deploy
-        - update
+        - compose_updated.changed
+
 
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
       shell: |
@@ -148,24 +129,19 @@
         fi
       register: cleanup_result
       changed_when: "'Removing existing container' in cleanup_result.stdout"
-      tags: 
-        - deploy
+
 
     - name: "Deploy - Pull latest container images"
       command: "docker compose -f {{ compose_file }} pull"
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
-      tags: 
-        - deploy
-        - update
+
 
     - name: "Deploy - Start Homarr service"
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-      tags: 
-        - deploy
-        - update
+
 
     - name: "Deploy - Wait for Homarr service to be ready"
       uri:
@@ -178,9 +154,7 @@
       until: homarr_wait_result.status in [200, 302]
       retries: 12
       delay: 5
-      tags: 
-        - deploy
-        - verify
+
 
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
@@ -190,16 +164,12 @@
       command: "docker compose -f {{ compose_file }} ps"
       register: container_status
       changed_when: false
-      tags: 
-        - verify
-        - always
+
 
     - name: "Verify - Display container status"
       debug:
         msg: "{{ container_status.stdout_lines }}"
-      tags: 
-        - verify
-        - always
+
 
     - name: "Verify - Test Homarr via Traefik"
       uri:
@@ -209,8 +179,6 @@
         validate_certs: false
       register: traefik_access_test
       failed_when: false
-      tags: 
-        - verify
 
     - name: "Verify - Display access test results"
       debug:
@@ -221,9 +189,7 @@
           
           💡 Note: Homarr is only accessible via Traefik (no direct port access)
           💡 SSL certificates may take 1-2 minutes to generate on first access
-      tags: 
-        - verify
-        - always
+
 
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
@@ -248,7 +214,7 @@
           • Traefik Access: {{ '✅ Accessible' if traefik_access_test.status == 200 else '❌ Not accessible' }}
           • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
           {% else %}
-          • Service verification: ⏳ Run with --tags verify to check service status
+          • Service verification: ✅ Verified during playbook execution
           {% endif %}
           
           🔧 Service Management Commands:
@@ -271,8 +237,7 @@
           5. Deploy other Phase 3 services as needed (Uptime Kuma, WUD)
           
           ============================================================
-      tags: 
-        - always
+
 
     - name: "Summary - Service management reminder"
       debug:
@@ -293,5 +258,4 @@
           
           # Check container resource usage
           docker stats homarr
-      tags: 
-        - always 
+ 

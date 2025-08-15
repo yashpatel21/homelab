@@ -43,7 +43,6 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
-      tags: [packages, update]
 
     - name: "Upgrade all packages to latest version"
       apt:
@@ -51,7 +50,6 @@
         autoremove: yes
         autoclean: yes
       register: apt_upgrade
-      tags: [packages, update]
 
     - name: "Install essential system utilities"
       apt:
@@ -67,7 +65,6 @@
           - apache2-utils # Provides htpasswd for password hashing (needed for monitoring)
           - software-properties-common  # APT repository management
         state: present
-      tags: [packages, utilities]
 
     # -------------------------------------------------------------------------
     # USER MANAGEMENT
@@ -86,13 +83,11 @@
     - name: "Set system timezone"
       timezone:
         name: "{{ system_timezone }}"
-      tags: [system, timezone]
 
     - name: "Configure system locale"
       locale_gen:
         name: "{{ system_locale }}"
         state: present
-      tags: [system, locale]
 
     - name: "Set default locale"
       lineinfile:
@@ -100,7 +95,6 @@
         regexp: "^LANG="
         line: "LANG={{ system_locale }}"
         create: yes
-      tags: [system, locale]
 
     # -------------------------------------------------------------------------
     # AUTOMATIC SECURITY UPDATES
@@ -110,7 +104,6 @@
       apt:
         name: unattended-upgrades
         state: present
-      tags: [security, updates]
 
     - name: "Configure automatic security updates"
       lineinfile:
@@ -121,7 +114,6 @@
       loop:
         - { regexp: "^APT::Periodic::Update-Package-Lists", line: "APT::Periodic::Update-Package-Lists \"1\";" }
         - { regexp: "^APT::Periodic::Unattended-Upgrade", line: "APT::Periodic::Unattended-Upgrade \"1\";" }
-      tags: [security, updates]
 
   # ---------------------------------------------------------------------------
   # HANDLERS

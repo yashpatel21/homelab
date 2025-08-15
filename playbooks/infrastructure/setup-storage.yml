@@ -46,7 +46,7 @@
       stat:
         path: "{{ proxmox_storage_device }}"
       register: proxmox_storage_device_check
-      tags: [proxmox, storage]
+
 
     - name: "Check if 2TB storage device is already formatted"
       command: "blkid {{ proxmox_storage_device }}"
@@ -54,7 +54,7 @@
       failed_when: false
       changed_when: false
       when: proxmox_storage_device_check.stat.exists
-      tags: [proxmox, storage]
+
 
     - name: "Format 2TB storage device"
       filesystem:
@@ -63,14 +63,14 @@
       when: 
         - proxmox_storage_device_check.stat.exists
         - proxmox_storage_formatted.rc != 0
-      tags: [proxmox, storage]
+
 
     - name: "Create storage directory"
       file:
         path: /storage
         state: directory
         mode: '0755'
-      tags: [proxmox, storage]
+
 
     - name: "Mount 2TB storage device"
       mount:
@@ -80,7 +80,7 @@
         opts: defaults
         state: mounted
       when: proxmox_storage_device_check.stat.exists
-      tags: [proxmox, storage]
+
 
     - name: "Set ownership of storage directory"
       file:
@@ -90,7 +90,7 @@
         mode: '0755'
         state: directory
       when: proxmox_storage_device_check.stat.exists
-      tags: [proxmox, storage]
+
 
     - name: "Verify storage mount"
       shell: "df -h | grep /storage"
@@ -98,7 +98,7 @@
       changed_when: false
       failed_when: false
       when: proxmox_storage_device_check.stat.exists
-      tags: [proxmox, storage]
+
 
     - name: "Display storage verification"
       debug:
@@ -106,7 +106,7 @@
       when: 
         - proxmox_storage_device_check.stat.exists
         - proxmox_storage_verification.stdout != ""
-      tags: [proxmox, storage]
+
 
 # =============================================================================
 # UBUNTU SERVER STORAGE CONFIGURATION (Run After Proxmox)
@@ -126,7 +126,7 @@
       stat:
         path: "{{ storage_device }}"
       register: storage_device_check
-      tags: [storage, ubuntu]
+
 
     - name: "Check if 2TB storage device is already formatted"
       command: "blkid {{ storage_device }}"
@@ -134,7 +134,7 @@
       failed_when: false
       changed_when: false
       when: storage_device_check.stat.exists
-      tags: [storage, ubuntu]
+
 
     - name: "Format 2TB storage device"
       filesystem:
@@ -143,14 +143,14 @@
       when: 
         - storage_device_check.stat.exists
         - storage_formatted.rc != 0
-      tags: [storage, ubuntu]
+
 
     - name: "Create storage directory"
       file:
         path: "{{ storage_directory }}"
         state: directory
         mode: '0755'
-      tags: [storage, ubuntu]
+
 
     - name: "Mount 2TB storage device"
       mount:
@@ -160,7 +160,7 @@
         opts: defaults
         state: mounted
       when: storage_device_check.stat.exists
-      tags: [storage, ubuntu]
+
 
     - name: "Set ownership of storage directory"
       file:
@@ -169,7 +169,7 @@
         group: "{{ ubuntu_primary_user }}"
         state: directory
       when: storage_device_check.stat.exists
-      tags: [storage, ubuntu]
+
 
     - name: "Verify storage mount"
       shell: "df -h | grep {{ storage_directory }}"
@@ -177,7 +177,7 @@
       changed_when: false
       failed_when: false
       when: storage_device_check.stat.exists
-      tags: [storage, ubuntu]
+
 
     - name: "Display storage verification"
       debug:
@@ -185,7 +185,7 @@
       when: 
         - storage_device_check.stat.exists
         - storage_verification.stdout != ""
-      tags: [storage, ubuntu]
+
 
     # -------------------------------------------------------------------------
     # DATA DIRECTORY STRUCTURE CREATION
@@ -198,7 +198,7 @@
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
         mode: '0755'
-      tags: [data, ubuntu]
+
 
     - name: "Create scripts subdirectory"
       file:
@@ -207,7 +207,7 @@
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
         mode: '0755'
-      tags: [data, ubuntu]
+
 
     - name: "Create compose subdirectory"
       file:
@@ -216,18 +216,18 @@
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
         mode: '0755'
-      tags: [data, ubuntu]
+
 
     - name: "Verify data directory structure"
       shell: "ls -la {{ data_directory }}/"
       register: data_directory_verification
       changed_when: false
-      tags: [data, ubuntu]
+
 
     - name: "Display data directory structure"
       debug:
         msg: "Data directory structure: {{ data_directory_verification.stdout_lines }}"
-      tags: [data, ubuntu]
+
 
   # ---------------------------------------------------------------------------
   # HANDLERS

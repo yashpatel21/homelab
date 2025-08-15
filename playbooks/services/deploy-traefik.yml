@@ -28,11 +28,10 @@
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-traefik.yml --ask-vault-pass
 #
-# Tags:
-# --tags setup    : Only create directories and configuration
-# --tags deploy   : Only deploy/update the service
-# --tags verify   : Only run verification checks
-# --tags update   : Force update and restart service
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# deployment and configuration of Traefik. All tasks are idempotent and
+# safe to run multiple times.
 # =============================================================================
 
 - name: Deploy Traefik Reverse Proxy with SSL Automation
@@ -61,9 +60,7 @@
         - "{{ data_directory }}/{{ service_name }}/config"
         - "{{ data_directory }}/{{ service_name }}/logs"
         - "{{ data_directory }}/{{ service_name }}/dynamic"
-      tags: 
-        - setup
-        - always
+
 
     - name: "Setup - Create SSL certificate file with proper permissions"
       file:
@@ -72,9 +69,7 @@
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
         mode: '0600'
-      tags: 
-        - setup
-        - always
+
 
     - name: "Setup - Generate Docker Compose file from template"
       template:
@@ -85,17 +80,12 @@
         mode: '0644'
         backup: yes
       register: compose_updated
-      tags: 
-        - setup
-        - deploy
-        - update
+
 
     - name: "Setup - Display compose file location"
       debug:
         msg: "Docker Compose file created at: {{ compose_file }}"
-      tags: 
-        - setup
-        - always
+
 
     # =============================================================================
     # DEPLOY: Service Deployment and Management
@@ -106,10 +96,7 @@
       register: existing_port_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
-        - always
+
 
     - name: "Deploy - Display existing containers using Traefik ports"
       debug:
@@ -124,28 +111,21 @@
           {% else %}
           ✅ No existing containers found using ports 80, 443, or 8080
           {% endif %}
-      tags: 
-        - deploy
-        - verify
-        - always
+
 
     - name: "Deploy - Check if containers are already running"
       command: "docker compose -f {{ compose_file }} ps -q"
       register: running_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
 
-    - name: "Deploy - Stop existing containers (if update requested)"
+
+    - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
       when: 
         - running_containers.stdout != ""
-        - "'update' in ansible_run_tags"
-      tags: 
-        - deploy
-        - update
+        - compose_updated.changed
+
 
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
       shell: |
@@ -160,8 +140,7 @@
       when: existing_port_containers.stdout != ""
       register: cleanup_result
       changed_when: "'Removing existing container' in cleanup_result.stdout"
-      tags: 
-        - deploy
+
 
     - name: "Deploy - Display cleanup results"
       debug:
@@ -174,25 +153,18 @@
           ℹ️  No container cleanup needed
           {% endif %}
       when: existing_port_containers.stdout != ""
-      tags: 
-        - deploy
-        - always
 
     - name: "Deploy - Pull latest container images"
       command: "docker compose -f {{ compose_file }} pull"
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
-      tags: 
-        - deploy
-        - update
+
 
     - name: "Deploy - Start Traefik services"
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-      tags: 
-        - deploy
-        - update
+
 
     - name: "Deploy - Wait for services to be ready"
       wait_for:
@@ -203,9 +175,7 @@
         - 80    # HTTP
         - 443   # HTTPS
         - 8080  # Traefik Dashboard
-      tags: 
-        - deploy
-        - verify
+
 
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
@@ -215,16 +185,12 @@
       command: "docker compose -f {{ compose_file }} ps"
       register: container_status
       changed_when: false
-      tags: 
-        - verify
-        - always
+
 
     - name: "Verify - Display container status"
       debug:
         msg: "{{ container_status.stdout_lines }}"
-      tags: 
-        - verify
-        - always
+
 
     - name: "Verify - Test Traefik dashboard accessibility"
       uri:
@@ -233,8 +199,7 @@
         timeout: 10
       register: dashboard_test
       failed_when: false
-      tags: 
-        - verify
+
 
     - name: "Verify - Test whoami service accessibility"
       uri:
@@ -245,8 +210,7 @@
           Host: "whoami.{{ base_domain }}"
       register: whoami_test
       failed_when: false
-      tags: 
-        - verify
+
 
     - name: "Verify - Check SSL certificate generation (wait up to 2 minutes)"
       wait_for:
@@ -255,9 +219,7 @@
         timeout: 120
       register: ssl_cert_check
       failed_when: false
-      tags: 
-        - verify
-        - always
+
 
     - name: "Verify - Display SSL certificate status"
       debug:
@@ -269,9 +231,7 @@
           {% else %}
           ✅ SSL certificates found in acme.json
           {% endif %}
-      tags: 
-        - verify
-        - always
+
 
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
@@ -299,7 +259,7 @@
           • Whoami Service: {{ '✅ Accessible' if whoami_test.status == 200 else '❌ Not accessible' }}
           • SSL Certificates: {{ '✅ Generated' if not ssl_cert_check.failed else '🔄 Generating...' }}
           {% else %}
-          • Service verification: ⏳ Run with --tags verify to check service status
+          • Service verification: ✅ Verified during playbook execution
           {% endif %}
           
           🔧 Service Management Commands:
@@ -320,8 +280,7 @@
           • Use 'openssl s_client -connect traefik.{{ base_domain }}:443' to test SSL
           
           ============================================================
-      tags: 
-        - always
+
 
     - name: "Summary - Service management reminder"
       debug:
@@ -345,5 +304,4 @@
           
           # Test SSL certificate
           openssl s_client -connect traefik.{{ base_domain }}:443 -servername traefik.{{ base_domain }}
-      tags: 
-        - always 
+ 

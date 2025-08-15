@@ -26,11 +26,9 @@
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-newt.yml --ask-vault-pass
 #
-# Tags:
-# --tags setup    : Only create directories and configuration
-# --tags deploy   : Only deploy/update the service
-# --tags verify   : Only run verification checks
-# --tags update   : Force update and restart service
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# deployment and configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 - name: Deploy Newt Tunneling Client
@@ -90,10 +88,6 @@
         - "{{ data_directory }}/{{ service_name }}"
         - "{{ data_directory }}/{{ service_name }}/config"
         - "{{ data_directory }}/{{ service_name }}/logs"
-      tags: 
-        - setup
-        - always
-
     - name: "Setup - Generate Docker Compose file from template"
       template:
         src: "newt-compose.yml.j2"
@@ -103,18 +97,9 @@
         mode: '0644'
         backup: yes
       register: compose_updated
-      tags: 
-        - setup
-        - deploy
-        - update
-
     - name: "Setup - Display compose file location"
       debug:
         msg: "Docker Compose file created at: {{ compose_file }}"
-      tags: 
-        - setup
-        - always
-
     # =============================================================================
     # DEPLOY: Service Deployment and Management
     # =============================================================================
@@ -124,42 +109,22 @@
       register: running_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
-
-    - name: "Deploy - Stop existing containers (if update requested)"
+    - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
       when: 
         - running_containers.stdout != ""
-        - "'update' in ansible_run_tags"
-      tags: 
-        - deploy
-        - update
-
+        - "compose_updated.changed"
     - name: "Deploy - Pull latest container images"
       command: "docker compose -f {{ compose_file }} pull"
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
-      tags: 
-        - deploy
-        - update
-
     - name: "Deploy - Start Newt service"
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-      tags: 
-        - deploy
-        - update
-
     - name: "Deploy - Wait for Newt service to be ready"
       pause:
         seconds: 10
-      tags: 
-        - deploy
-        - verify
-
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
     # =============================================================================
@@ -168,25 +133,14 @@
       command: "docker compose -f {{ compose_file }} ps"
       register: container_status
       changed_when: false
-      tags: 
-        - verify
-        - always
-
     - name: "Verify - Display container status"
       debug:
         msg: "{{ container_status.stdout_lines }}"
-      tags: 
-        - verify
-        - always
-
     - name: "Verify - Check Newt logs for connection status"
       command: "docker logs newt --tail 20"
       register: newt_logs
       changed_when: false
       failed_when: false
-      tags: 
-        - verify
-
     - name: "Verify - Display Newt connection status"
       debug:
         msg: |
@@ -194,10 +148,6 @@
           {{ newt_logs.stdout_lines | join('\n') }}
           
           💡 Check logs for successful tunnel establishment to Pangolin server
-      tags: 
-        - verify
-        - always
-
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
     # =============================================================================
@@ -239,9 +189,6 @@
           • Verify Newt credentials in vault.yml if authentication fails
           
           ============================================================
-      tags: 
-        - always
-
     - name: "Summary - Service management reminder"
       debug:
         msg: |
@@ -264,5 +211,3 @@
           
           # Update Newt client
           docker compose -f {{ compose_file }} pull && docker compose -f {{ compose_file }} up -d
-      tags: 
-        - always 

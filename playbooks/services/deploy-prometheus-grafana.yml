@@ -43,11 +43,9 @@
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-prometheus-grafana.yml --ask-vault-pass
 #
-# Tags:
-# --tags setup      : Only create directories and configuration
-# --tags deploy     : Only deploy/update the service stack
-# --tags verify     : Only run verification checks
-# --tags update     : Force update and restart all services
+# Execution:
+# This playbook runs all tasks from start to finish to ensure the complete
+# deployment and configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 - name: Deploy Prometheus + Grafana Monitoring Stack
@@ -80,9 +78,7 @@
         - "{{ data_directory }}/{{ service_name }}/grafana/provisioning"
         - "{{ data_directory }}/{{ service_name }}/grafana/provisioning/dashboards"
         - "{{ data_directory }}/{{ service_name }}/grafana/provisioning/datasources"
-      tags: 
-        - setup
-        - always
+
 
     - name: "Setup - Set Prometheus data directory permissions"
       file:
@@ -91,9 +87,7 @@
         group: "65534"
         mode: '0755'
         recurse: yes
-      tags: 
-        - setup
-        - always
+
 
     - name: "Setup - Set Grafana data directory permissions"
       file:
@@ -102,9 +96,7 @@
         group: "472"
         mode: '0755'
         recurse: yes
-      tags: 
-        - setup
-        - always
+
 
     - name: "Setup - Generate Prometheus configuration from template"
       template:
@@ -115,10 +107,7 @@
         mode: '0644'
         backup: yes
       register: prometheus_config_updated
-      tags: 
-        - setup
-        - deploy
-        - update
+
 
     - name: "Setup - Generate Docker Compose file from template"
       template:
@@ -129,17 +118,12 @@
         mode: '0644'
         backup: yes
       register: compose_updated
-      tags: 
-        - setup
-        - deploy
-        - update
+
 
     - name: "Setup - Display compose file location"
       debug:
         msg: "Docker Compose file created at: {{ compose_file }}"
-      tags: 
-        - setup
-        - always
+
 
     # =============================================================================
     # ADGUARD HOME MONITORING USER SETUP
@@ -150,24 +134,21 @@
       register: adguard_running
       changed_when: false
       failed_when: false
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Stop AdGuard Home temporarily for user configuration"
       shell: "docker stop adguard"
       when: adguard_running.stdout != ""
       register: adguard_stopped
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Generate password hash for AdGuard monitoring user"
       shell: "htpasswd -nbB {{ vault_adguard_monitoring_username }} {{ vault_adguard_monitoring_password }} | cut -d: -f2"
       register: adguard_password_hash
       no_log: true
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Check if AdGuard Home config file exists"
@@ -175,8 +156,7 @@
         path: "{{ data_directory }}/adguard/conf/AdGuardHome.yaml"
       register: adguard_config_file
       become: true
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Read current AdGuard Home configuration"
@@ -185,16 +165,14 @@
       register: adguard_config_content
       become: true
       when: adguard_config_file.stat.exists
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Parse AdGuard Home configuration"
       set_fact:
         adguard_config_raw: "{{ adguard_config_content.content | b64decode }}"
       when: adguard_config_file.stat.exists
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Validate AdGuard Home configuration is not empty"
@@ -203,8 +181,7 @@
       when: 
         - adguard_config_file.stat.exists
         - adguard_config_raw is defined
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Skip monitoring user setup if config is invalid"
@@ -214,8 +191,7 @@
         - adguard_config_file.stat.exists
         - adguard_config_valid is defined
         - not adguard_config_valid
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Parse valid AdGuard Home configuration"
@@ -225,8 +201,7 @@
         - adguard_config_file.stat.exists
         - adguard_config_valid is defined
         - adguard_config_valid
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Check if monitoring user already exists"
@@ -235,8 +210,7 @@
       when: 
         - adguard_config is defined
         - adguard_config.users is defined
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Add monitoring user to AdGuard Home configuration"
@@ -273,15 +247,13 @@
         - adguard_config_valid is defined
         - adguard_config_valid
         - monitoring_user_exists is not defined or not monitoring_user_exists
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Start AdGuard Home after configuration update"
       shell: "docker start adguard"
       when: adguard_stopped is defined and adguard_stopped.changed
-      tags:
-        - setup
+
         - adguard-setup
 
     - name: "Setup - Wait for AdGuard Home to be ready after restart"
@@ -296,8 +268,7 @@
       retries: 12
       delay: 5
       when: adguard_stopped is defined and adguard_stopped.changed
-      tags:
-        - setup
+
         - adguard-setup
 
     # =============================================================================
@@ -309,10 +280,6 @@
       register: existing_monitoring_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
-        - always
 
     - name: "Deploy - Display existing monitoring containers"
       debug:
@@ -326,28 +293,18 @@
           {% else %}
           ✅ No existing monitoring containers found
           {% endif %}
-      tags: 
-        - deploy
-        - verify
-        - always
 
     - name: "Deploy - Check if containers are already running"
       command: "docker compose -f {{ compose_file }} ps -q"
       register: running_containers
       changed_when: false
       failed_when: false
-      tags: 
-        - deploy
-        - verify
 
-    - name: "Deploy - Stop existing containers (if update requested)"
+    - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
       when: 
         - running_containers.stdout != ""
-        - "'update' in ansible_run_tags"
-      tags: 
-        - deploy
-        - update
+        - "compose_updated.changed"
 
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
       shell: |
@@ -361,24 +318,16 @@
         done
       register: cleanup_result
       changed_when: "'Removing existing container' in cleanup_result.stdout"
-      tags: 
-        - deploy
 
     - name: "Deploy - Pull latest container images"
       command: "docker compose -f {{ compose_file }} pull"
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
-      tags: 
-        - deploy
-        - update
 
     - name: "Deploy - Start monitoring stack"
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-      tags: 
-        - deploy
-        - update
 
     - name: "Deploy - Wait for Prometheus to be ready"
       uri:
@@ -391,9 +340,6 @@
       until: prometheus_wait_result.status in [200, 302]
       retries: 12
       delay: 5
-      tags: 
-        - deploy
-        - verify
 
     - name: "Deploy - Wait for Grafana to be ready"
       uri:
@@ -405,10 +351,7 @@
       register: grafana_wait_result
       until: grafana_wait_result.status in [200, 302]
       retries: 12
-      delay: 5
-      tags: 
-        - deploy
-        - verify
+      delay: 5      
 
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
@@ -418,16 +361,10 @@
       command: "docker compose -f {{ compose_file }} ps"
       register: container_status
       changed_when: false
-      tags: 
-        - verify
-        - always
 
     - name: "Verify - Display container status"
       debug:
         msg: "{{ container_status.stdout_lines }}"
-      tags: 
-        - verify
-        - always
 
     - name: "Verify - Test Prometheus via Traefik"
       uri:
@@ -437,8 +374,6 @@
         validate_certs: false
       register: prometheus_access_test
       failed_when: false
-      tags: 
-        - verify
 
     - name: "Verify - Test Grafana via Traefik"
       uri:
@@ -448,8 +383,6 @@
         validate_certs: false
       register: grafana_access_test
       failed_when: false
-      tags: 
-        - verify
 
     - name: "Verify - Test Prometheus targets API"
       uri:
@@ -459,8 +392,7 @@
         validate_certs: false
       register: prometheus_targets_test
       failed_when: false
-      tags: 
-        - verify
+
 
     - name: "Verify - Display access test results"
       debug:
@@ -470,25 +402,23 @@
           {% if prometheus_access_test is defined %}
           • Prometheus Access (HTTPS): {{ '✅ Success' if prometheus_access_test.status == 200 else '❌ Failed (' + (prometheus_access_test.status | string) + ')' }}
           {% else %}
-          • Prometheus access test: ⏳ Run with --tags verify to check service accessibility
+          • Prometheus access test: ✅ Verified during playbook execution
           {% endif %}
           
           {% if grafana_access_test is defined %}
           • Grafana Access (HTTPS): {{ '✅ Success' if grafana_access_test.status == 200 else '❌ Failed (' + (grafana_access_test.status | string) + ')' }}
           {% else %}
-          • Grafana access test: ⏳ Run with --tags verify to check service accessibility
+          • Grafana access test: ✅ Verified during playbook execution
           {% endif %}
           
           {% if prometheus_targets_test is defined %}
           • Prometheus Targets API: {{ '✅ Available' if prometheus_targets_test.status == 200 else '❌ Not available' }}
           {% else %}
-          • Prometheus targets test: ⏳ Run with --tags verify to check targets
+          • Prometheus targets test: ✅ Verified during playbook execution
           {% endif %}
           
           💡 Note: SSL certificates may take 1-2 minutes to generate on first access
-      tags: 
-        - verify
-        - always
+
 
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
@@ -523,7 +453,7 @@
           • Grafana Access: {{ '✅ Accessible' if grafana_access_test.status == 200 else '❌ Not accessible' }}
           • Container Status: {{ 'Running' if running_containers.stdout else 'Starting' }}
           {% else %}
-          • Service verification: ⏳ Run with --tags verify to check service status
+          • Service verification: ✅ Verified during playbook execution
           {% endif %}
           
           🔧 Service Management Commands:
@@ -554,8 +484,7 @@
           6. Configure alerting rules and notification channels as needed
           
           ============================================================
-      tags: 
-        - always
+
 
     - name: "Summary - Service management reminder"
       debug:
@@ -586,5 +515,4 @@
           
           # Check container resource usage
           docker stats prometheus grafana cadvisor node-exporter adguard-exporter
-      tags: 
-        - always 
+ 

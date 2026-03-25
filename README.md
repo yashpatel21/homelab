@@ -2,26 +2,26 @@
 
 A comprehensive Infrastructure as Code (IaC) solution for deploying enterprise-grade homelab services using Ansible automation, Docker containerization, and modern DevOps practices.
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 This project implements a **fully automated, reproducible homelab infrastructure** across 5 deployment phases, featuring enterprise-grade security, comprehensive monitoring, and secure external access capabilities.
 
 ### Core Technologies
 
--   **🔧 Ansible** - Infrastructure automation and configuration management
--   **🐳 Docker & Docker Compose** - Containerized service deployment
--   **🔐 Ansible Vault** - Encrypted secrets management
--   **🌐 Traefik** - Reverse proxy with automated SSL certificate management
--   **🔒 Authentik** - Single Sign-On (SSO) and identity management with OIDC/SAML2/LDAP support
--   **📊 Prometheus & Grafana** - Infrastructure monitoring with custom dashboards and OPNsense integration
--   **🛡️ CrowdSec** - Intrusion Detection/Prevention System (IDS/IPS) with behavioral analysis
--   **📨 NTFY** - Real-time push notification service with token authentication
--   **🛡️ AdGuard Home** - DNS filtering with automated OPNsense failover for internet reliability
--   **⏱️ Uptime Kuma** - Service availability monitoring with multi-channel notifications
--   **🔄 WUD** - Docker container update monitoring with selective management
--   **🔗 Pangolin & Newt** - Secure tunneling for external access without port forwarding
+-   **Ansible** - Infrastructure automation and configuration management
+-   **Docker & Docker Compose** - Containerized service deployment
+-   **Ansible Vault** - Encrypted secrets management
+-   **Traefik** - Reverse proxy with automated SSL certificate management
+-   **Authentik** - Single Sign-On (SSO) and identity management with OIDC/SAML2/LDAP support
+-   **Prometheus & Grafana** - Infrastructure monitoring with custom dashboards and OPNsense integration
+-   **CrowdSec** - Intrusion Detection/Prevention System (IDS/IPS) with behavioral analysis
+-   **NTFY** - Real-time push notification service with token authentication
+-   **AdGuard Home** - DNS filtering with automated OPNsense failover for internet reliability
+-   **Uptime Kuma** - Service availability monitoring with multi-channel notifications
+-   **WUD** - Docker container update monitoring with selective management
+-   **Pangolin & Newt** - Secure tunneling for external access without port forwarding
 
-## 🚀 Deployment Phases
+## Deployment Phases
 
 ### Phase 1: Infrastructure Foundation
 
@@ -37,32 +37,32 @@ This project implements a **fully automated, reproducible homelab infrastructure
 
 **Essential infrastructure services with automated failover**
 
--   **🌐 Traefik Reverse Proxy** - SSL termination, routing, automatic certificate management
--   **📨 NTFY Notification Service** - Real-time push notifications with token-based authentication
--   **🛡️ AdGuard Home** - DNS filtering with automated OPNsense failover (critical for internet reliability - if AdGuard fails, entire network internet access would be lost without failover)
+-   **Traefik Reverse Proxy** - SSL termination, routing, automatic certificate management
+-   **NTFY Notification Service** - Real-time push notifications with token-based authentication
+-   **AdGuard Home** - DNS filtering with automated OPNsense failover (critical for internet reliability - if AdGuard fails, entire network internet access would be lost without failover)
 
 ### Phase 3: Supporting Services
 
 **Monitoring, dashboards, and operational tools**
 
--   **📊 Homarr Dashboard** - Centralized service dashboard with Proxmox integration
--   **⏱️ Uptime Kuma** - Service monitoring with multi-notification channels
--   **🔄 WUD (What's Up Docker)** - Container update notifications with selective management
--   **📈 Prometheus + Grafana** - Infrastructure monitoring with custom dashboards and OPNsense integration
+-   **Homarr Dashboard** - Centralized service dashboard with Proxmox integration
+-   **Uptime Kuma** - Service monitoring with multi-notification channels
+-   **WUD (What's Up Docker)** - Container update notifications with selective management
+-   **Prometheus + Grafana** - Infrastructure monitoring with custom dashboards and OPNsense integration
 
 ### Phase 4: Productivity Services
 
 **Productivity and utility platforms**
 
--   **☁️ Nextcloud All-in-One** - File synchronization, collaboration, and productivity suite
--   **🔧 IT Tools** - 100+ developer and IT utilities collection
--   **🔄 ConvertX** - Universal file conversion service supporting 1000+ formats
+-   **Nextcloud All-in-One** - File synchronization, collaboration, and productivity suite
+-   **IT Tools** - 100+ developer and IT utilities collection
+-   **ConvertX** - Universal file conversion service supporting 1000+ formats
 
 ### Phase 5: Authentication & External Access
 
 **Enterprise security and secure external access**
 
--   **🔐 Authentik SSO** - Complete identity management with OIDC/SAML2/LDAP support
+-   **Authentik SSO** - Complete identity management with OIDC/SAML2/LDAP support
     -   PostgreSQL backend for user data
     -   Redis caching for performance
     -   Forward auth and native OIDC integration
@@ -71,12 +71,12 @@ This project implements a **fully automated, reproducible homelab infrastructure
     -   VPS-based server deployment
     -   Encrypted tunnel connections
     -   Resource-based service exposure
--   **🛡️ CrowdSec Security** - Advanced threat protection
+-   **CrowdSec Security** - Advanced threat protection
     -   Behavioral analysis and threat detection
     -   Cloudflare Turnstile captcha integration
     -   Automated decision management
 
-## 🛡️ Security Features
+## Security Features
 
 ### Infrastructure Security
 
@@ -99,7 +99,7 @@ This project implements a **fully automated, reproducible homelab infrastructure
 -   **Proactive Notifications** - NTFY integration for immediate issue alerts
 -   **Comprehensive Logging** - Centralized log collection and analysis
 
-## 📊 Monitoring & Observability
+## Monitoring & Observability
 
 ### Infrastructure Monitoring
 
@@ -120,7 +120,7 @@ This project implements a **fully automated, reproducible homelab infrastructure
 -   **Service Status** - Homarr dashboard with integrated service health
 -   **Security Overview** - CrowdSec decision tracking and threat analysis
 
-## 🏭 DevOps Practices
+## DevOps Practices
 
 ### Infrastructure as Code
 
@@ -171,7 +171,7 @@ Internet → Cloudflare → Pangolin VPS → Encrypted Tunnel → Homelab
 -   **Configuration Management** - Template-based configuration with environment variables
 -   **Secrets Handling** - Ansible Vault encryption for all sensitive data
 
-## 📋 Service Matrix
+## Service Matrix
 
 | Service         | Purpose           | Authentication             | External Access  |
 | --------------- | ----------------- | -------------------------- | ---------------- |
@@ -188,7 +188,7 @@ Internet → Cloudflare → Pangolin VPS → Encrypted Tunnel → Homelab
 | **Prometheus**  | Metrics           | Authentik Forward Auth     | ❌ Internal Only |
 | **WUD**         | Update Monitoring | Authentik OIDC             | ❌ Internal Only |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -217,7 +217,3 @@ ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-base.ym
 ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-traefik.yml --ask-vault-pass
 # Continue with remaining services...
 ```
-
----
-
-_This homelab demonstrates practical application of modern infrastructure practices including Infrastructure as Code principles, centralized authentication, automated monitoring, and secure external access - all while maintaining reproducibility and security._

@@ -233,6 +233,23 @@
       register: reader_created
       failed_when: reader_created.rc != 0 and 'already exists' not in reader_created.stderr
 
+    # ntfy stores credentials in auth.db; redeploying the container does not update an
+    # existing user. The mobile app sends Basic auth to ntfy (see Authentik "Intercept
+    # header authentication"); that password must match this user in ntfy, not only Authentik.
+    - name: "Auth - Sync ntfy-reader password from vault to ntfy (existing + new users)"
+      shell: |
+        printf '%s\n%s\n' "$NTFY_READER_PASS" "$NTFY_READER_PASS" | docker exec -i ntfy ntfy user change-pass ntfy-reader
+      environment:
+        NTFY_READER_PASS: "{{ vault_ntfy_reader_password }}"
+      when:
+        - auth_enabled | default(false) | bool
+        - >
+          ('ntfy-reader' in reader_user_check.stdout) or
+          (reader_created is defined and reader_created.changed | default(false))
+      no_log: true
+      register: reader_password_sync
+      changed_when: reader_password_sync.rc == 0
+      failed_when: reader_password_sync.rc != 0
 
     - name: "Auth - Set read permissions for ntfy-reader user (Authentik integration)"
       shell: |

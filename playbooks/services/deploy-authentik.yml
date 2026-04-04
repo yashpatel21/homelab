@@ -219,7 +219,7 @@
             - "{{ data_directory }}/{{ authentik_service_name }}"
             - "{{ data_directory }}/{{ authentik_service_name }}/postgresql"
             - "{{ data_directory }}/{{ authentik_service_name }}/redis"
-            - "{{ data_directory }}/{{ authentik_service_name }}/media"
+            - "{{ data_directory }}/{{ authentik_service_name }}/data"
             - "{{ data_directory }}/{{ authentik_service_name }}/certs"
             - "{{ data_directory }}/{{ authentik_service_name }}/custom-templates"
 

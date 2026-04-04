@@ -39,5 +39,4 @@ http:
           - "X-Forwarded-Host"
         customRequestHeaders:
           X-Forwarded-Proto: "https"
-          X-Forwarded-For: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
         referrerPolicy: "same-origin" 

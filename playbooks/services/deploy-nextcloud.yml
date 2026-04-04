@@ -195,6 +195,37 @@
       stat:
         path: "{{ traefik_config_file }}"
       register: traefik_config_check
+    - name: "Detect Nextcloud AIO application container (for occ)"
+      shell: docker ps -q -f name=nextcloud-aio-nextcloud
+      register: nc_aio_app_container
+      changed_when: false
+
+    - name: "Configure - Trust loopback for local health (trusted_proxies)"
+      command: >-
+        docker exec --user www-data nextcloud-aio-nextcloud
+        php occ config:system:set trusted_proxies 0 --value=127.0.0.1 --type=string
+      when: nc_aio_app_container.stdout | length > 0
+      register: occ_trusted_proxy_loopback
+      changed_when: "'trusted_proxies' in occ_trusted_proxy_loopback.stdout"
+
+    - name: "Configure - Trust Traefik Docker network for X-Forwarded-For (trusted_proxies)"
+      command: >-
+        docker exec --user www-data nextcloud-aio-nextcloud
+        php occ config:system:set trusted_proxies 1 --value={{ docker_network_subnet }} --type=string
+      when: nc_aio_app_container.stdout | length > 0
+      register: occ_trusted_proxy_docker
+      changed_when: "'trusted_proxies' in occ_trusted_proxy_docker.stdout"
+
+    - name: "Configure - Allow OIDC discovery when Authentik resolves to LAN (split DNS)"
+      command: >-
+        docker exec --user www-data nextcloud-aio-nextcloud
+        php occ config:system:set allow_local_remote_servers --type=bool --value=true
+      when:
+        - auth_enabled | default(false) | bool
+        - nc_aio_app_container.stdout | length > 0
+      register: occ_allow_local_remote
+      changed_when: "'allow_local_remote_servers' in occ_allow_local_remote.stdout"
+
     - name: "Verify - Display access test results"
       debug:
         msg: |

@@ -68,11 +68,12 @@ services:
   # AUTHENTIK SERVER
   # ===========================================================================
   authentik_server:
-    image: ghcr.io/goauthentik/server:2025.10.4
+    image: ghcr.io/goauthentik/server:2026.2.1
     container_name: authentik_server
     hostname: authentik_server
     restart: unless-stopped
     command: server
+    shm_size: 512mb
     environment:
       # Database Configuration
       AUTHENTIK_POSTGRESQL__HOST: authentik_postgresql
@@ -113,9 +114,9 @@ services:
       # Session Configuration
       AUTHENTIK_COOKIE_DOMAIN: ".{{ base_domain }}"
       
+    # 2026.2+ upstream layout: ./data:/data, ./custom-templates:/templates (server has no /certs)
     volumes:
-      - "{{ data_directory }}/{{ authentik_service_name }}/media:/media"
-      - "{{ data_directory }}/{{ authentik_service_name }}/certs:/certs"
+      - "{{ data_directory }}/{{ authentik_service_name }}/data:/data"
       - "{{ data_directory }}/{{ authentik_service_name }}/custom-templates:/templates"
     ports:
       # Internal ports for container communication
@@ -159,12 +160,13 @@ services:
   # AUTHENTIK WORKER
   # ===========================================================================
   authentik_worker:
-    image: ghcr.io/goauthentik/server:2025.10.4
+    image: ghcr.io/goauthentik/server:2026.2.1
     container_name: authentik_worker
     hostname: authentik_worker
     restart: unless-stopped
     command: worker
     user: root
+    shm_size: 512mb
     environment:
       # Database Configuration (same as server)
       AUTHENTIK_POSTGRESQL__HOST: authentik_postgresql
@@ -196,10 +198,8 @@ services:
       AUTHENTIK_LOG_LEVEL: "info"
       
     volumes:
-      # Docker socket for container management (optional but recommended)
       - /var/run/docker.sock:/var/run/docker.sock
-      # Shared volumes with server
-      - "{{ data_directory }}/{{ authentik_service_name }}/media:/media"
+      - "{{ data_directory }}/{{ authentik_service_name }}/data:/data"
       - "{{ data_directory }}/{{ authentik_service_name }}/certs:/certs"
       - "{{ data_directory }}/{{ authentik_service_name }}/custom-templates:/templates"
     networks:

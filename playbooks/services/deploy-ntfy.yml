@@ -761,13 +761,6 @@
       copy:
         dest: "/usr/local/opnsense/service/conf/actions.d/actions_firmware-notify.conf"
         content: |
-          [run-minor]
-          command:/usr/local/bin/firmware-notify.sh
-          parameters:minor
-          type:script
-          message:Running OPNsense minor firmware update check
-          description:OPNsense minor firmware update monitoring
-
           [run-major]
           command:/usr/local/bin/firmware-notify.sh
           parameters:major
@@ -794,7 +787,6 @@
       shell: |
         configctl firmware-notify reload
         sleep 2
-        configctl firmware-notify run-minor
         configctl firmware-notify run-major
       when: 
         - has_vault_token
@@ -802,8 +794,8 @@
       failed_when: false
 
 
-    - name: "OPNsense - Run firmware check script for testing (both minor and major)"
-      shell: "/usr/local/bin/firmware-notify.sh both"
+    - name: "OPNsense - Run firmware check script for testing (major only)"
+      shell: "/usr/local/bin/firmware-notify.sh major"
       register: opnsense_script_run
       when: has_vault_token
       failed_when: false
@@ -813,9 +805,9 @@
         msg: |
           🔒 OPNSENSE MONITORING SCRIPT STATUS:
           {% if has_vault_token %}
-          ✅ Firmware monitoring script deployed with dual scheduling support
-          ✅ Configd actions configured for separate minor/major upgrade checks
-          ✅ Script executed immediately for testing (both minor and major checks)
+          ✅ OPNsense major firmware monitoring script deployed
+          ✅ Configd action: firmware-notify run-major
+          ✅ Script executed immediately for testing (major check)
           📁 Script location: /usr/local/bin/firmware-notify.sh
           📋 Action file: /usr/local/opnsense/service/conf/actions.d/actions_firmware-notify.conf
           📜 Log file: /var/log/firmware-notify-errors.log
@@ -831,22 +823,9 @@
           
           💡 Check NTFY at https://ntfy.{{ base_domain }}/opnsense-alerts for notifications
           
-          🔧 Manual Cron Job Setup Required (Two Separate Jobs):
-          
-          **Job 1 - Minor Updates (Daily):**
-          1. Go to System → Settings → Cron
-          2. Click "+" to add new job
-          3. Command: "OPNsense minor firmware update monitoring"
-          4. Schedule: Daily at 6 PM (0 18 * * *)
-          5. Save changes
-          
-          **Job 2 - Major Updates (Monthly):**
-          1. Click "+" to add another job
-          2. Command: "OPNsense major firmware update monitoring"  
-          3. Schedule: First Sunday of month at 12 PM (0 12 1-7 * 0)
-          4. Save changes
-          
-          This separates daily minor update notifications from weekly major upgrade alerts.
+          🔧 Manual Cron: System → Settings → Cron
+          - Command: OPNsense major firmware update monitoring
+          - Schedule: First Sunday of month at 12 PM (0 12 1-7 * 0)
           See documentation for complete configuration steps.
           {% else %}
           ❌ Script deployment skipped - NTFY token not available in vault

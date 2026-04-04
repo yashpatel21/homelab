@@ -584,7 +584,7 @@
     - name: "Scripts - Configure Ubuntu update check cron job"
       shell: |
         # Get current crontab for user, add our job if not present, then install new crontab
-        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "0	12	*	*	0	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
+        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "{{ update_check_schedules.ubuntu_vm }}	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
       when: 
         - scripts_vault_token_available
         - "'not found' in ubuntu_cron_check.stdout"
@@ -655,7 +655,7 @@
     - name: "Ubuntu Scripts - Configure Ubuntu update check cron job"
       shell: |
         # Get current crontab for user, add our job if not present, then install new crontab
-        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "0	12	*	*	0	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
+        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "{{ update_check_schedules.ubuntu_vm }}	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
       when: 
         - has_vault_token
         - "'not found' in ubuntu_scripts_cron_check.stdout"
@@ -680,7 +680,7 @@
           🖥️ UBUNTU MONITORING SCRIPT STATUS:
           {% if has_vault_token %}
           ✅ Update monitoring script deployed
-          ✅ Weekly cron job configured (Sundays at 12 PM)
+          ✅ Monthly cron job configured (First Sunday of month at 12 PM)
           ✅ Script executed immediately for testing
           📁 Script location: {{ data_directory }}/scripts/check-updates.sh
           📜 Log file: {{ data_directory }}/scripts/update-check.log
@@ -823,10 +823,10 @@
           4. Schedule: Daily at 6 PM (0 18 * * *)
           5. Save changes
           
-          **Job 2 - Major Updates (Weekly):**
+          **Job 2 - Major Updates (Monthly):**
           1. Click "+" to add another job
           2. Command: "OPNsense major firmware update monitoring"  
-          3. Schedule: Weekly on Sundays at 12 PM (0 12 * * 0)
+          3. Schedule: First Sunday of month at 12 PM (0 12 1-7 * 0)
           4. Save changes
           
           This separates daily minor update notifications from weekly major upgrade alerts.
@@ -887,7 +887,7 @@
     - name: "Proxmox - Configure update check cron job"
       shell: |
         # Get current crontab, add our job if not present, then install new crontab
-        (crontab -l 2>/dev/null || echo ""; echo "0	12	*	*	0	/usr/local/bin/proxmox-update-check.sh") | crontab -
+        (crontab -l 2>/dev/null || echo ""; echo "{{ update_check_schedules.proxmox }}	/usr/local/bin/proxmox-update-check.sh") | crontab -
       when: 
         - has_vault_token
         - "'not found' in proxmox_cron_check.stdout"
@@ -906,7 +906,7 @@
           🖥️ PROXMOX MONITORING SCRIPT STATUS:
           {% if has_vault_token %}
           ✅ Update monitoring script deployed
-          ✅ Weekly cron job configured (Sundays at 12 PM)
+          ✅ Monthly cron job configured (First Sunday of month at 12 PM)
           ✅ Script executed immediately for testing
           📁 Script location: /usr/local/bin/proxmox-update-check.sh
           📜 Log file: /var/log/proxmox-update-check.log

@@ -127,56 +127,35 @@
       register: adguard_running
       changed_when: false
       failed_when: false
-
-        - adguard-setup
-
     - name: "Setup - Stop AdGuard Home temporarily for user configuration"
       shell: "docker stop adguard"
       when: adguard_running.stdout != ""
       register: adguard_stopped
-
-        - adguard-setup
-
     - name: "Setup - Generate password hash for AdGuard monitoring user"
       shell: "htpasswd -nbB {{ vault_adguard_monitoring_username }} {{ vault_adguard_monitoring_password }} | cut -d: -f2"
       register: adguard_password_hash
       no_log: true
-
-        - adguard-setup
-
     - name: "Setup - Check if AdGuard Home config file exists"
       stat:
         path: "{{ data_directory }}/adguard/conf/AdGuardHome.yaml"
       register: adguard_config_file
       become: true
-
-        - adguard-setup
-
     - name: "Setup - Read current AdGuard Home configuration"
       slurp:
         src: "{{ data_directory }}/adguard/conf/AdGuardHome.yaml"
       register: adguard_config_content
       become: true
       when: adguard_config_file.stat.exists
-
-        - adguard-setup
-
     - name: "Setup - Parse AdGuard Home configuration"
       set_fact:
         adguard_config_raw: "{{ adguard_config_content.content | b64decode }}"
       when: adguard_config_file.stat.exists
-
-        - adguard-setup
-
     - name: "Setup - Validate AdGuard Home configuration is not empty"
       set_fact:
         adguard_config_valid: "{{ adguard_config_raw | length > 10 and 'users:' in adguard_config_raw }}"
       when: 
         - adguard_config_file.stat.exists
         - adguard_config_raw is defined
-
-        - adguard-setup
-
     - name: "Setup - Skip monitoring user setup if config is invalid"
       debug:
         msg: "⚠️ AdGuard Home configuration appears to be empty or invalid. Skipping monitoring user setup to prevent data loss."
@@ -184,9 +163,6 @@
         - adguard_config_file.stat.exists
         - adguard_config_valid is defined
         - not adguard_config_valid
-
-        - adguard-setup
-
     - name: "Setup - Parse valid AdGuard Home configuration"
       set_fact:
         adguard_config: "{{ adguard_config_raw | from_yaml }}"
@@ -194,18 +170,12 @@
         - adguard_config_file.stat.exists
         - adguard_config_valid is defined
         - adguard_config_valid
-
-        - adguard-setup
-
     - name: "Setup - Check if monitoring user already exists"
       set_fact:
         monitoring_user_exists: "{{ adguard_config.users | selectattr('name', 'equalto', vault_adguard_monitoring_username) | list | length > 0 }}"
       when: 
         - adguard_config is defined
         - adguard_config.users is defined
-
-        - adguard-setup
-
     - name: "Setup - Add monitoring user to AdGuard Home configuration"
       block:
         - name: "Setup - Create users section if it doesn't exist"
@@ -240,15 +210,9 @@
         - adguard_config_valid is defined
         - adguard_config_valid
         - monitoring_user_exists is not defined or not monitoring_user_exists
-
-        - adguard-setup
-
     - name: "Setup - Start AdGuard Home after configuration update"
       shell: "docker start adguard"
       when: adguard_stopped is defined and adguard_stopped.changed
-
-        - adguard-setup
-
     - name: "Setup - Wait for AdGuard Home to be ready after restart"
       uri:
         url: "https://adguard.{{ base_domain }}/"
@@ -261,9 +225,6 @@
       retries: 12
       delay: 5
       when: adguard_stopped is defined and adguard_stopped.changed
-
-        - adguard-setup
-
     # =============================================================================
     # DEPLOY: Service Deployment and Management
     # =============================================================================

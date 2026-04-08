@@ -15,24 +15,27 @@ log_msg "Starting update check"
 # Update package lists
 sudo apt update > /dev/null 2>&1
 
-# Check for available updates
-UPDATES=$(apt list --upgradable 2>/dev/null | grep -v "WARNING" | wc -l)
-SECURITY_UPDATES=$(apt list --upgradable 2>/dev/null | grep -i security | wc -l)
+# Only lines that are real upgradable entries contain "[upgradable" (works for any locale;
+# the old "Listing..." header and WARNING noise never match).
+UPGRADABLE_LIST=$(mktemp) || exit 1
+trap 'rm -f "$UPGRADABLE_LIST"' EXIT
+apt list --upgradable 2>/dev/null | grep -v "WARNING" | grep -F '[upgradable' >"$UPGRADABLE_LIST"
 
-log_msg "Found $((UPDATES-1)) updates ($SECURITY_UPDATES security)"
+UPDATES=$(grep -c . "$UPGRADABLE_LIST")
+SECURITY_UPDATES=$(grep -ci security "$UPGRADABLE_LIST")
 
-if [ $UPDATES -gt 1 ]; then
-    # Get list of packages (first 10)
-    PACKAGE_LIST=$(apt list --upgradable 2>/dev/null | grep -v "WARNING" | head -11 | tail -10 | cut -d'/' -f1 | tr '\n' ', ' | sed 's/,$//')
+log_msg "Found $UPDATES updates ($SECURITY_UPDATES security)"
+
+if [ "${UPDATES:-0}" -gt 0 ]; then
+    # Get list of packages (first 10) from the same snapshot as UPDATES
+    PACKAGE_LIST=$(head -10 "$UPGRADABLE_LIST" | cut -d'/' -f1 | tr '\n' ', ' | sed 's/,$//')
     
-    if [ $((UPDATES-1)) -gt 10 ]; then
-        PACKAGE_LIST="$PACKAGE_LIST and $((UPDATES-11)) more..."
+    if [ "${UPDATES:-0}" -gt 10 ]; then
+        PACKAGE_LIST="$PACKAGE_LIST and $((UPDATES-10)) more..."
     fi
     
     # Create properly formatted message with actual line breaks
-    MESSAGE="🔄 Ubuntu Updates Available
-
-Total packages: $((UPDATES-1))
+    MESSAGE="Total packages: $UPDATES
 Security updates: $SECURITY_UPDATES
 
 Packages: $PACKAGE_LIST
@@ -43,9 +46,7 @@ Check time: $(date '+%Y-%m-%d %H:%M')"
     
     # Send notification with authentication
     if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
-         -H "Title: Ubuntu Updates Available" \
-         -H "Priority: default" \
-         -H "Tags: package,ubuntu" \
+         -H "Title: 📦 Ubuntu Updates Available" \
          -d "$MESSAGE" \
          "$NTFY_URL/$TOPIC" 2>>"$LOG_FILE"; then
         log_msg "Notification sent successfully"

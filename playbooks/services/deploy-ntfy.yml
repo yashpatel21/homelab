@@ -763,7 +763,7 @@
         content: |
           [run-major]
           command:/usr/local/bin/firmware-notify.sh
-          parameters:major
+          parameters:major %s
           type:script
           message:Running OPNsense major firmware update check
           description:OPNsense major firmware update monitoring
@@ -825,8 +825,9 @@
           
           🔧 Manual Cron: System → Settings → Cron
           - Command: OPNsense major firmware update monitoring
-          - Schedule: First Sunday of month at 12 PM (0 12 1-7 * 0)
-          See documentation for complete configuration steps.
+          - Schedule: 0 12 1-7 * * (no day-of-week in cron; use Parameters instead)
+          - Parameters: 0  (Sunday; 0–6, same as date +%w)
+          See documentation: cron + configd parameters.
           {% else %}
           ❌ Script deployment skipped - NTFY token not available in vault
           💡 Deploy NTFY service first and add token to vault
@@ -920,7 +921,7 @@
           
           📝 Manual Proxmox Backup Webhook Setup Required:
           1. Access Proxmox web interface → Datacenter → Notifications
-          2. Add Webhook Target: https://ntfy.{{ base_domain }}/proxmox-alerts
+          2. Add Webhook Target URL: http://{{ ubuntu_server_ip }}:8082/proxmox-alerts
           3. Add Authorization header: Bearer {{ vault_ntfy_token if has_vault_token else 'YOUR_TOKEN' }}
           4. Configure Notification Matcher for backup events
           

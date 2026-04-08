@@ -13,10 +13,29 @@ log_msg() {
 case "${1:-major}" in
     major) ;;
     *)
-        echo "Usage: $0 [major]" >&2
+        echo "Usage: $0 major [day_of_week]" >&2
         exit 1
         ;;
 esac
+
+# Optional day-of-week gate (0=Sunday … 6=Saturday, same as date +%w).
+# OPNsense cron should use schedule 0 12 1-7 * * and pass the weekday here;
+# combining day-of-month and day-of-week in one crontab line is OR-style on FreeBSD cron.
+REQUIRE_DOW="${2:-}"
+if [ -n "$REQUIRE_DOW" ]; then
+    case "$REQUIRE_DOW" in
+        [0-6]) ;;
+        *)
+            log_msg "ERROR: day_of_week must be 0-6 (Sunday=0), got: $REQUIRE_DOW"
+            exit 1
+            ;;
+    esac
+    TODAY_DOW=$(date +%w)
+    if [ "$TODAY_DOW" != "$REQUIRE_DOW" ]; then
+        log_msg "Skipping: weekday $TODAY_DOW != required $REQUIRE_DOW"
+        exit 0
+    fi
+fi
 
 get_latest_version_from_github() {
     LATEST_VERSION=$(curl -s "https://api.github.com/repos/opnsense/core/tags" | \
@@ -67,9 +86,7 @@ if [ -n "$LATEST_VERSION" ]; then
     if version_greater "$LATEST_MAJOR" "$CURRENT_MAJOR"; then
         log_msg "Major version upgrade available: $CURRENT_MAJOR -> $LATEST_MAJOR"
 
-        MESSAGE="🚨 MAJOR OPNsense Upgrade Available!
-
-Current: OPNsense $CURRENT_VERSION
+        MESSAGE="Current: OPNsense $CURRENT_VERSION
 Available: $LATEST_VERSION
 
 ⚠️ Requires manual intervention
@@ -80,9 +97,7 @@ Backup config: System → Configuration → Backups
 Update: System → Firmware → Updates"
 
         if curl -s -H "Authorization: Bearer $NTFY_TOKEN" \
-             -H "Title: 🚨 OPNsense MAJOR Upgrade Available" \
-             -H "Priority: high" \
-             -H "Tags: opnsense,major-upgrade,warning" \
+             -H "Title: 📦 OPNsense Major Update Available" \
              -d "$MESSAGE" \
              "$NTFY_URL/$TOPIC" >/dev/null 2>&1; then
             log_msg "Major upgrade notification sent"

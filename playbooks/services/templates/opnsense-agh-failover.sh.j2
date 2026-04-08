@@ -86,16 +86,14 @@ EOF
         /usr/local/sbin/configctl unbound restart >/dev/null 2>&1
 
         # Send recovery notification
-        RECOVERY_MESSAGE="✅ AdGuard Home DNS Recovery
-
-AdGuard Home ({{ ubuntu_server_ip }}) is back online and healthy.
+        RECOVERY_MESSAGE="AdGuard Home ({{ ubuntu_server_ip }}) is back online and healthy.
 
 DNS forwarding restored to AdGuard Home for ad blocking.
 
 Status: Primary DNS active
 Time: $(date '+%Y-%m-%d %H:%M:%S')"
 
-        send_notification "✅ AdGuard Home DNS Recovered" "$RECOVERY_MESSAGE" "default" "opnsense,dns,recovery"
+        send_notification "🟢 AdGuard Home DNS Recovered" "$RECOVERY_MESSAGE"
         logger "AGH Failover: Recovery notification sent to NTFY"
     fi
 else
@@ -121,9 +119,7 @@ EOF
         /usr/local/sbin/configctl unbound restart >/dev/null 2>&1
 
         # Send failover notification
-        FAILOVER_MESSAGE="⚠️ AdGuard Home DNS Failover
-
-AdGuard Home ({{ ubuntu_server_ip }}) is not responding to DNS queries.
+        FAILOVER_MESSAGE="AdGuard Home ({{ ubuntu_server_ip }}) is not responding to DNS queries.
 
 Automatically switched to Cloudflare DNS over TLS (1.1.1.1) as backup.
 
@@ -135,7 +131,7 @@ Time: $(date '+%Y-%m-%d %H:%M:%S')
 
 System will automatically switch back when AdGuard Home recovers."
 
-        send_notification "⚠️ AdGuard Home DNS Failover" "$FAILOVER_MESSAGE" "high" "opnsense,dns,failover,warning"
+        send_notification "🔴 AdGuard Home DNS Failover" "$FAILOVER_MESSAGE"
         logger "AGH Failover: Failover notification sent to NTFY"
     fi
 fi 

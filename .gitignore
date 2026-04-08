@@ -15,8 +15,8 @@ __pycache__/
 .vagrant/
 temp/
 
+# Sensitive Documentation
 docs/
 
-ansible-docs/
-
 .cursor/
+.cursorignore

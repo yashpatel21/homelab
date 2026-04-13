@@ -1,4 +1,4 @@
-# Enterprise Homelab Infrastructure
+# Homelab Infrastructure
 
 A comprehensive Infrastructure as Code (IaC) solution for deploying enterprise-grade homelab services using Ansible automation, Docker containerization, and modern DevOps practices.
 

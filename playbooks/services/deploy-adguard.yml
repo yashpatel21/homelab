@@ -228,7 +228,7 @@
       changed_when: "'Removing existing container' in cleanup_result.stdout"
 
 
-    - name: "Deploy - Wait for DNS failover to Cloudflare (if AdGuard stopped)"
+    - name: "Deploy - Wait for DNS failover window (before image pull)"
       pause:
         seconds: 90
         prompt: |
@@ -236,14 +236,13 @@
           🔄 DNS FAILOVER WAIT
           ==================
           
-          AdGuard Home has been stopped, which may have caused DNS resolution failure.
-          Waiting 90 seconds for OPNsense failover script to detect the outage 
-          and automatically switch DNS to Cloudflare DNS over TLS.
+          AdGuard Home may have been stopped, which can cause DNS resolution failure.
+          Waiting 90 seconds for OPNsense failover script to detect any outage
+          and switch DNS to Cloudflare DNS over TLS if needed.
           
           This ensures Docker Hub connectivity for image pulling.
           
           ⏱️  Please wait...
-      when: cleanup_result.changed
 
 
     - name: "Deploy - Pull latest container images"

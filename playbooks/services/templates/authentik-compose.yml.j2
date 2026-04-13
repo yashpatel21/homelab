@@ -38,7 +38,7 @@ services:
     volumes:
       - "{{ data_directory }}/{{ authentik_service_name }}/postgresql:/var/lib/postgresql/data"
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     labels:
       # Database backup labels
       - "backup.enable=true"
@@ -62,7 +62,7 @@ services:
     volumes:
       - "{{ data_directory }}/{{ authentik_service_name }}/redis:/data"
     networks:
-      - homelab
+      - {{ homelab_network_name }}
 
   # ===========================================================================
   # AUTHENTIK SERVER
@@ -123,7 +123,7 @@ services:
       - "127.0.0.1:9000:9000"  # HTTP (for Traefik forward auth)
       - "127.0.0.1:9443:9443"  # HTTPS (internal)
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     depends_on:
       authentik_postgresql:
         condition: service_healthy
@@ -203,7 +203,7 @@ services:
       - "{{ data_directory }}/{{ authentik_service_name }}/certs:/certs"
       - "{{ data_directory }}/{{ authentik_service_name }}/custom-templates:/templates"
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     depends_on:
       authentik_postgresql:
         condition: service_healthy
@@ -223,5 +223,5 @@ services:
 # NETWORKS
 # =============================================================================
 networks:
-  homelab:
+  {{ homelab_network_name }}:
     external: true

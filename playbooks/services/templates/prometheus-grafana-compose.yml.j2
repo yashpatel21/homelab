@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
     user: "65534:65534"  # nobody user for security
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     ports:
       - "127.0.0.1:9090:9090"
     command:
@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
     user: "472:472"  # grafana user
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     ports:
       - "127.0.0.1:3001:3000"
     environment:
@@ -128,7 +128,7 @@ services:
     restart: unless-stopped
     user: "65534:65534"  # nobody user
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     ports:
       - "127.0.0.1:9100:9100"
     command:
@@ -158,7 +158,7 @@ services:
     hostname: cadvisor
     restart: unless-stopped
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     ports:
       - "127.0.0.1:8081:8080"
     command:
@@ -191,7 +191,7 @@ services:
     hostname: adguard-exporter
     restart: unless-stopped
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     ports:
       - "127.0.0.1:9618:9618"
     environment:
@@ -219,7 +219,7 @@ services:
     hostname: opnsense-exporter
     restart: unless-stopped
     networks:
-      - homelab
+      - {{ homelab_network_name }}
     ports:
       - "127.0.0.1:8090:8080"
     command:
@@ -244,5 +244,5 @@ services:
 # NETWORKS
 # ===========================================================================
 networks:
-  homelab:
+  {{ homelab_network_name }}:
     external: true 

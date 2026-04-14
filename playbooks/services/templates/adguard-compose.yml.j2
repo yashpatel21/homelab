@@ -26,10 +26,6 @@ services:
       # DNS service - primary function
       - "53:53/tcp"
       - "53:53/udp"
-      # DNS over TLS (optional)
-      - "853:853/tcp"
-      # DNS over QUIC (optional)
-      - "784:784/udp"
     
     # Environment configuration
     environment:

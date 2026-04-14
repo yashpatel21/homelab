@@ -2,7 +2,7 @@
 # =============================================================================
 # PHASE 2: Core Services - AdGuard Home DNS Filtering Deployment
 # =============================================================================
-# 
+#
 # This playbook deploys AdGuard Home DNS filtering service with complete
 # integration, DNS configuration, and OPNsense failover automation.
 #
@@ -46,18 +46,17 @@
     service_name: "adguard"
     compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
     ssl_cert_resolver: "myresolver"
-    
+
   tasks:
     # =============================================================================
     # SETUP: DNS Configuration and Directory Creation
     # =============================================================================
-    
+
     - name: "Setup - Check if systemd-resolved is using DNS stub"
       command: "netstat -tulpn | grep :53"
       register: dns_port_check
       changed_when: false
       failed_when: false
-
 
     - name: "Setup - Display current DNS port usage"
       debug:
@@ -69,15 +68,13 @@
           ✅ Port 53 appears to be free
           {% endif %}
 
-
     - name: "Setup - Create systemd-resolved configuration directory"
       file:
         path: "/etc/systemd/resolved.conf.d"
         state: directory
         owner: "root"
         group: "root"
-        mode: '0755'
-
+        mode: "0755"
 
     - name: "Setup - Configure systemd-resolved for AdGuard Home"
       copy:
@@ -85,14 +82,13 @@
         content: |
           [Resolve]
           DNS=192.168.1.1
-          FallbackDNS=1.1.1.1#cloudflare-dns.com 9.9.9.9#dns.quad9.net
+          FallbackDNS=1.1.1.1
           DNSStubListener=no
-          DNSOverTLS=opportunistic
+          DNSOverTLS=no
         owner: "root"
         group: "root"
-        mode: '0644'
+        mode: "0644"
       register: resolved_config
-
 
     - name: "Setup - Backup current resolv.conf"
       copy:
@@ -100,7 +96,6 @@
         dest: "/etc/resolv.conf.backup"
         remote_src: yes
       failed_when: false
-
 
     - name: "Setup - Update resolv.conf symlink"
       file:
@@ -110,26 +105,22 @@
         force: yes
       register: resolv_updated
 
-
     - name: "Setup - Restart systemd-resolved"
       systemd:
         name: "systemd-resolved"
         state: restarted
       when: resolved_config.changed or resolv_updated.changed
 
-
     - name: "Setup - Wait for systemd-resolved to start"
       pause:
         seconds: 5
       when: resolved_config.changed or resolv_updated.changed
-
 
     - name: "Setup - Verify port 53 is free"
       command: "netstat -tulpn | grep :53"
       register: dns_port_final_check
       changed_when: false
       failed_when: false
-
 
     - name: "Setup - Display final DNS port status"
       debug:
@@ -138,7 +129,7 @@
           {% if dns_port_final_check is defined and dns_port_final_check.stdout %}
           ⚠️  Port 53 still in use:
           {{ dns_port_final_check.stdout }}
-          
+
           💡 This may be normal if systemd-resolved is configured correctly
           💡 AdGuard Home will still be able to bind to port 53 in container
           {% elif dns_port_final_check is defined %}
@@ -147,19 +138,17 @@
           ⏳ DNS port check pending during playbook execution
           {% endif %}
 
-
     - name: "Setup - Create AdGuard Home directories"
       file:
         path: "{{ item }}"
         state: directory
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
-        mode: '0755'
+        mode: "0755"
       loop:
         - "{{ data_directory }}/{{ service_name }}"
         - "{{ data_directory }}/{{ service_name }}/work"
         - "{{ data_directory }}/{{ service_name }}/conf"
-
 
     - name: "Setup - Generate Docker Compose file from template"
       template:
@@ -167,15 +156,13 @@
         dest: "{{ compose_file }}"
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
-        mode: '0644'
+        mode: "0644"
         backup: yes
       register: compose_updated
-
 
     - name: "Setup - Display compose file location"
       debug:
         msg: "Docker Compose file created at: {{ compose_file }}"
-
 
     # =============================================================================
     # DEPLOY: Service Deployment and Management
@@ -187,7 +174,6 @@
       changed_when: false
       failed_when: false
 
-
     - name: "Deploy - Display existing AdGuard Home containers"
       debug:
         msg: |
@@ -195,12 +181,11 @@
           {% if existing_adguard_containers.stdout %}
           ⚠️  Found existing AdGuard Home containers:
           {{ existing_adguard_containers.stdout }}
-          
+
           💡 Note: Will be managed by Ansible if names match
           {% else %}
           ✅ No existing AdGuard Home containers found
           {% endif %}
-
 
     - name: "Deploy - Check if containers are already running"
       command: "docker compose -f {{ compose_file }} ps -q"
@@ -208,13 +193,11 @@
       changed_when: false
       failed_when: false
 
-
     - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
-      when: 
+      when:
         - running_containers.stdout != ""
         - compose_updated.changed
-      
 
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
       shell: |
@@ -227,35 +210,31 @@
       register: cleanup_result
       changed_when: "'Removing existing container' in cleanup_result.stdout"
 
-
     - name: "Deploy - Wait for DNS failover window (before image pull)"
       pause:
         seconds: 90
         prompt: |
-          
+
           🔄 DNS FAILOVER WAIT
           ==================
-          
+
           AdGuard Home may have been stopped, which can cause DNS resolution failure.
           Waiting 90 seconds for OPNsense failover script to detect any outage
           and switch DNS to Cloudflare DNS over TLS if needed.
-          
-          This ensures Docker Hub connectivity for image pulling.
-          
-          ⏱️  Please wait...
 
+          This ensures Docker Hub connectivity for image pulling.
+
+          ⏱️  Please wait...
 
     - name: "Deploy - Pull latest container images"
       command: "docker compose -f {{ compose_file }} pull"
       register: pull_result
       changed_when: "'Downloaded newer image' in pull_result.stdout"
-      
 
     - name: "Deploy - Start AdGuard Home service"
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-      
 
     - name: "Deploy - Wait for AdGuard Home to be ready"
       wait_for:
@@ -277,7 +256,6 @@
       set_fact:
         has_ntfy_token: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
 
-
     - name: "Failover - Display NTFY token availability"
       debug:
         msg: |
@@ -295,7 +273,7 @@
   vars:
     service_name: "adguard"
     script_path: "/usr/local/bin/agh_failover.sh"
-    
+
   tasks:
     - name: "Failover - Load vault variables"
       include_vars: "../../inventory/group_vars/all/vault.yml"
@@ -310,7 +288,7 @@
         state: directory
         owner: "root"
         group: "wheel"
-        mode: '0755'
+        mode: "0755"
       when: has_ntfy_token
 
     - name: "Failover - Deploy DNS failover script"
@@ -319,7 +297,7 @@
         dest: "{{ script_path }}"
         owner: "root"
         group: "wheel"
-        mode: '0755'
+        mode: "0755"
         backup: yes
       when: has_ntfy_token
       register: failover_script_deployed
@@ -330,7 +308,7 @@
         state: directory
         owner: "root"
         group: "wheel"
-        mode: '0755'
+        mode: "0755"
       when: has_ntfy_token
 
     - name: "Failover - Create configd action for DNS failover script"
@@ -345,7 +323,7 @@
           description:AdGuard Home DNS failover monitoring
         owner: "root"
         group: "wheel"
-        mode: '0644'
+        mode: "0644"
       when: has_ntfy_token
       register: action_created
 
@@ -353,13 +331,13 @@
       service:
         name: configd
         state: restarted
-      when: 
+      when:
         - has_ntfy_token
         - action_created.changed
 
     - name: "Failover - Reload configd action"
       shell: "configctl agh-failover reload"
-      when: 
+      when:
         - has_ntfy_token
         - action_created.changed
       failed_when: false
@@ -379,7 +357,7 @@
           ✅ Configd action configured for persistent cron jobs
           📁 Script location: {{ script_path }}
           📋 Action file: /usr/local/opnsense/service/conf/actions.d/actions_agh-failover.conf
-          
+
           🧪 Script Test Results:
           {% if failover_script_test is defined and failover_script_test is not skipped %}
           • Exit code: {{ failover_script_test.rc }}
@@ -390,20 +368,20 @@
           {% else %}
           • Script test skipped during playbook execution
           {% endif %}
-          
+
           💡 Check NTFY at https://ntfy.{{ base_domain }}/opnsense-alerts for failover notifications
-          
+
           🔧 Manual OPNsense Configuration Required:
           1. **DNS Configuration**: Services → Unbound DNS → Query Forwarding
              • Add DNS forward: Domain: blank, Server: {{ ubuntu_server_ip }}, Port: 53
              • Apply changes
-          
+
           2. **Cron Job Setup**: System → Settings → Cron
              • Click "+" to add new job
              • Command: "AdGuard Home DNS failover monitoring"
              • Schedule: Every minute (* * * * *)
              • Save changes
-          
+
           See documentation for complete configuration steps and verification instructions.
           {% else %}
           ❌ Script deployment skipped - NTFY token not available
@@ -420,12 +398,11 @@
   vars:
     service_name: "adguard"
     compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
-    
+
   tasks:
     - name: "Final Check - Verify NTFY token availability"
       set_fact:
         has_ntfy_token: "{{ vault_ntfy_token is defined and vault_ntfy_token != '' and vault_ntfy_token != 'PLACEHOLDER_TOKEN' }}"
-
 
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
@@ -436,11 +413,9 @@
       register: container_status
       changed_when: false
 
-
     - name: "Verify - Display container status"
       debug:
         msg: "{{ container_status.stdout_lines }}"
-
 
     - name: "Verify - Test AdGuard Home web interface"
       uri:
@@ -449,7 +424,6 @@
         timeout: 10
       register: web_direct_test
       failed_when: false
-
 
     - name: "Verify - Test AdGuard Home via Traefik"
       uri:
@@ -460,12 +434,10 @@
       register: web_traefik_test
       failed_when: false
 
-
     - name: "Verify - Test DNS resolution"
       command: "nslookup google.com {{ ubuntu_server_ip }}"
       register: dns_test
       failed_when: false
-
 
     - name: "Verify - Display DNS test results"
       debug:
@@ -481,7 +453,6 @@
           ⏳ DNS test pending during playbook execution
           {% endif %}
 
-
     # =============================================================================
     # SUMMARY: Final Deployment Summary
     # =============================================================================
@@ -492,7 +463,3 @@
           ✅ AdGuard Home DNS filtering service deployed successfully
           🌐 Web interface: https://adguard.{{ base_domain }}
           ⚠️  Complete initial setup wizard and configure DNS forwarding in OPNsense
-
-
-
- 

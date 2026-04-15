@@ -2,7 +2,7 @@
 # =============================================================================
 # PHASE 1: Infrastructure Foundation - Docker Installation & Configuration
 # =============================================================================
-# 
+#
 # This playbook handles Docker installation and configuration on the Ubuntu
 # server, creating the foundation for all containerized services.
 #
@@ -15,8 +15,8 @@
 # 1. Installs Docker using the official installation script
 # 2. Installs Docker Compose plugin
 # 3. Adds primary user to docker group
-# 4. Creates homelab Docker network
-# 5. Configures Docker daemon settings
+# 4. Configures Docker daemon settings (including IPv6)
+# 5. Creates homelab Docker network as a dual-stack bridge network
 # 6. Enables and starts Docker service
 # 7. Verifies Docker installation and functionality
 #
@@ -28,10 +28,6 @@
 #
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-docker.yml --ask-vault-pass
-#
-# Execution:
-# This playbook runs all tasks from start to finish to ensure the complete
-# Docker installation and configuration. All tasks are idempotent and safe to run multiple times.
 # =============================================================================
 
 - name: "Phase 1.3 - Ubuntu Server Docker Installation & Configuration"
@@ -40,25 +36,26 @@
   gather_facts: yes
 
   tasks:
+    # -------------------------------------------------------------------------
+    # DOCKER INSTALLATION
+    # -------------------------------------------------------------------------
+
     - name: "Check if Docker is already installed"
       command: docker --version
       register: docker_version_check
       failed_when: false
       changed_when: false
 
-
     - name: "Download Docker installation script"
       get_url:
         url: https://get.docker.com
         dest: /tmp/get-docker.sh
-        mode: '0755'
+        mode: "0755"
       when: docker_version_check.rc != 0
-
 
     - name: "Install Docker using official script"
       shell: /tmp/get-docker.sh
       when: docker_version_check.rc != 0
-
 
     - name: "Remove Docker installation script"
       file:
@@ -72,7 +69,6 @@
         state: present
         update_cache: yes
 
-
     # -------------------------------------------------------------------------
     # USER CONFIGURATION
     # -------------------------------------------------------------------------
@@ -82,7 +78,6 @@
         name: "{{ ubuntu_primary_user }}"
         groups: docker
         append: yes
-
 
     # -------------------------------------------------------------------------
     # DOCKER SERVICE CONFIGURATION
@@ -95,12 +90,10 @@
         state: started
         daemon_reload: yes
 
-
     - name: "Verify Docker service is running"
       systemd:
         name: docker
       register: docker_service_status
-
 
     # -------------------------------------------------------------------------
     # DOCKER DAEMON CONFIGURATION
@@ -110,11 +103,12 @@
       file:
         path: /etc/docker
         state: directory
-        mode: '0755'
-
+        mode: "0755"
 
     - name: "Configure Docker daemon settings"
       copy:
+        dest: /etc/docker/daemon.json
+        mode: "0644"
         content: |
           {
             "log-driver": "json-file",
@@ -125,26 +119,33 @@
             "storage-driver": "overlay2",
             "features": {
               "buildkit": true
+            },
+            "ipv6": true,
+            "default-network-opts": {
+              "bridge": {
+                "com.docker.network.enable_ipv6": "true"
+              }
             }
           }
-        dest: /etc/docker/daemon.json
-        mode: '0644'
       notify: restart docker
 
+    - name: "Restart Docker now if daemon config changed"
+      meta: flush_handlers
 
     # -------------------------------------------------------------------------
     # DOCKER NETWORK CONFIGURATION
     # -------------------------------------------------------------------------
 
-    - name: "Create homelab Docker network"
+    - name: "Create homelab Docker network (dual-stack)"
       docker_network:
         name: "{{ homelab_network_name }}"
         driver: bridge
+        enable_ipv6: true
         ipam_config:
           - subnet: "{{ docker_network_subnet }}"
+          - subnet: "{{ docker_network_subnet_v6 }}"
       become: no
       become_user: "{{ ubuntu_primary_user }}"
-
 
     # -------------------------------------------------------------------------
     # VERIFICATION
@@ -157,14 +158,12 @@
       become: no
       become_user: "{{ ubuntu_primary_user }}"
 
-
     - name: "Verify Docker Compose installation"
       command: docker compose version
       register: docker_compose_version
       changed_when: false
       become: no
       become_user: "{{ ubuntu_primary_user }}"
-
 
     - name: "Verify Docker service is active"
       command: docker info
@@ -173,14 +172,19 @@
       become: no
       become_user: "{{ ubuntu_primary_user }}"
 
-
-    - name: "Verify homelab network exists"
-      command: docker network ls
-      register: docker_networks
+    - name: "Verify Docker IPv6 is enabled"
+      shell: "docker info | grep -i '^ IPv6:' || true"
+      register: docker_ipv6_status
       changed_when: false
       become: no
       become_user: "{{ ubuntu_primary_user }}"
 
+    - name: "Inspect homelab Docker network"
+      command: docker network inspect "{{ homelab_network_name }}"
+      register: homelab_network_inspect
+      changed_when: false
+      become: no
+      become_user: "{{ ubuntu_primary_user }}"
 
     - name: "Display Docker installation summary"
       debug:
@@ -188,8 +192,10 @@
           - "Docker Version: {{ docker_version_final.stdout }}"
           - "Docker Compose Version: {{ docker_compose_version.stdout }}"
           - "Docker Service: {{ docker_service_status.status.ActiveState }}"
-          - "Networks Available: {{ docker_networks.stdout_lines | length }} networks"
-
+          - "Docker IPv6 Status: {{ docker_ipv6_status.stdout | default('Not found in docker info output') }}"
+          - "Homelab Network: {{ homelab_network_name }}"
+          - "Homelab IPv4 Subnet: {{ docker_network_subnet }}"
+          - "Homelab IPv6 Subnet: {{ docker_network_subnet_v6 }}"
 
   # ---------------------------------------------------------------------------
   # HANDLERS

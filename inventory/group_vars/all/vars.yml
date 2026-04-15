@@ -4,7 +4,7 @@
 # =============================================================================
 # HOMELAB ANSIBLE VARIABLES - PUBLIC CONFIGURATION
 # =============================================================================
-# 
+#
 # This file contains NON-SENSITIVE configuration variables used across all
 # playbooks. Sensitive data (passwords, tokens, keys) goes in vault.yml
 #
@@ -21,6 +21,7 @@ internal_domain: "localdomain"
 # Network settings
 homelab_network_name: "homelab"
 docker_network_subnet: "172.20.0.0/16"
+docker_network_subnet_v6: "fd00:1000:1000:20::/64"
 
 # Host IP addresses (these are local IPs, safe to be public)
 ubuntu_server_ip: "192.168.1.20"
@@ -36,8 +37,8 @@ data_directory: "/data"
 storage_directory: "/storage"
 
 # Storage devices
-storage_device: "/dev/sdb"  # 2TB drive for Ubuntu VM
-proxmox_storage_device: "/dev/sda"  # 2TB drive for Proxmox host
+storage_device: "/dev/sdb" # 2TB drive for Ubuntu VM
+proxmox_storage_device: "/dev/sda" # 2TB drive for Proxmox host
 
 # -----------------------------------------------------------------------------
 # SYSTEM CONFIGURATION
@@ -71,26 +72,26 @@ services:
   traefik:
     port: "8080"
     domain: "traefik.{{ base_domain }}"
-  
+
   adguard:
     port: "3000"
     domain: "adguard.{{ base_domain }}"
     dns_port: "53"
-  
+
   ntfy:
     port: "80"
     domain: "ntfy.{{ base_domain }}"
-  
+
   uptime_kuma:
     port: "3001"
     domain: "uptime.{{ base_domain }}"
-  
+
   homarr:
     port: "7575"
-    domain: "{{ base_domain }}"  # Root domain
-  
+    domain: "{{ base_domain }}" # Root domain
+
   wud:
-    schedule: "0 12 1-7 * 0"  # First Sunday of every month at 12pm
+    schedule: "0 12 1-7 * 0" # First Sunday of every month at 12pm
 
 # -----------------------------------------------------------------------------
 # MONITORING CONFIGURATION
@@ -98,11 +99,11 @@ services:
 
 # System update check schedules (different for each host)
 update_check_schedules:
-  ubuntu_vm: "0 12 1-7 * 0"      # First Sunday of every month at 12pm
-  proxmox: "0 12 1-7 * 0"        # First Sunday of every month at 12pm
+  ubuntu_vm: "0 12 1-7 * 0" # First Sunday of every month at 12pm
+  proxmox: "0 12 1-7 * 0" # First Sunday of every month at 12pm
 
 # DNS failover monitoring schedule
-dns_failover_schedule: "* * * * *"  # Every minute for OPNsense AdGuard Home failover
+dns_failover_schedule: "* * * * *" # Every minute for OPNsense AdGuard Home failover
 
 # -----------------------------------------------------------------------------
 # AUTHENTICATION CONFIGURATION
@@ -113,9 +114,10 @@ dns_failover_schedule: "* * * * *"  # Every minute for OPNsense AdGuard Home fai
 auth_enabled: true
 # User Groups with Access Control
 homelab_user_groups:
-  admins: ['yash']     # Full access to everything
-  operators: ['dushyant']  # Full AdGuard + View-only admin services + Regular user family services
-  family: ['leena', 'ria']  # NextCloud + Homarr only
+  admins: ["yash"] # Full access to everything
+  operators: ["dushyant"] # Full AdGuard + View-only admin services + Regular user family services
+  family: ["leena", "ria"] # NextCloud + Homarr only
+
 
 # =============================================================================
 # IMPORTANT NOTES

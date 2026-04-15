@@ -2,7 +2,7 @@
 # =============================================================================
 # PHASE 1: Infrastructure Foundation - Base System Setup
 # =============================================================================
-# 
+#
 # This playbook handles the fundamental system configuration for Ubuntu
 # server after initial setup and SSH access is configured.
 #
@@ -11,17 +11,20 @@
 # - SSH access configured on all hosts
 # - Admin users created via web interfaces
 # - Ubuntu Server installed with SSH access
+# - OPNsense LAN/WAN networking configured and working
 #
 # What this playbook does:
-# 1. Updates Ubuntu system packages to latest versions
-# 2. Installs essential utilities for system management
-# 3. Sets up timezone, locale and automatic updates
+# 1. Configures Ubuntu host networking with static IPv4 and dynamic IPv6
+# 2. Updates Ubuntu system packages to latest versions
+# 3. Installs essential utilities for system management
+# 4. Sets up timezone, locale, and automatic security updates
 #
 # Idempotent Design:
 # - Safe to run multiple times
-# - Preserves existing configuration
+# - Maintains a single authoritative netplan configuration
+# - Disables cloud-init network ownership to avoid conflicting netplan files
 # - Handles package updates gracefully
-# - Works with existing system setup
+# - Works with both fresh installs and existing systems
 #
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-base.yml --ask-vault-pass
@@ -38,9 +41,52 @@
 
   tasks:
     # -------------------------------------------------------------------------
+    # UBUNTU HOST NETWORK CONFIGURATION
+    # -------------------------------------------------------------------------
+
+    - name: "Disable cloud-init network management"
+      copy:
+        dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+        content: |
+          network: {config: disabled}
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: "Remove cloud-init generated netplan file"
+      file:
+        path: /etc/netplan/50-cloud-init.yaml
+        state: absent
+      notify: apply netplan
+
+    - name: "Configure authoritative netplan for Ubuntu host"
+      copy:
+        dest: /etc/netplan/00-installer-config.yaml
+        content: |
+          network:
+            version: 2
+            ethernets:
+              {{ ubuntu_network_interface | default('ens18') }}:
+                addresses:
+                  - {{ ubuntu_server_ip | default('192.168.1.20') }}/{{ ubuntu_ipv4_prefix | default('24') }}
+                nameservers:
+                  addresses:
+                    - {{ ubuntu_dns_ipv4 | default('192.168.1.1') }}
+                  search:
+                    - {{ ubuntu_search_domain | default('localdomain') }}
+                routes:
+                  - to: default
+                    via: {{ ubuntu_ipv4_gateway | default('192.168.1.1') }}
+                dhcp6: true
+        owner: root
+        group: root
+        mode: "0600"
+      notify: apply netplan
+
+    # -------------------------------------------------------------------------
     # SYSTEM PACKAGE MANAGEMENT
     # -------------------------------------------------------------------------
-    
+
     - name: "Update apt package cache"
       apt:
         update_cache: yes
@@ -56,16 +102,16 @@
     - name: "Install essential system utilities"
       apt:
         name:
-          - htop          # Interactive process viewer
-          - tree          # Directory tree display
-          - net-tools     # Network utilities (netstat, ifconfig)
-          - curl          # Data transfer tool
-          - wget          # File downloader
-          - git           # Version control system
-          - vim           # Text editor
-          - unzip         # Archive extraction
-          - apache2-utils # Provides htpasswd for password hashing (needed for monitoring)
-          - software-properties-common  # APT repository management
+          - htop
+          - tree
+          - net-tools
+          - curl
+          - wget
+          - git
+          - vim
+          - unzip
+          - apache2-utils
+          - software-properties-common
         state: present
 
     # -------------------------------------------------------------------------
@@ -108,4 +154,5 @@
         - { regexp: "^APT::Periodic::Unattended-Upgrade", line: "APT::Periodic::Unattended-Upgrade \"1\";" }
 
   handlers:
-    # No handlers needed for current tasks 
+    - name: apply netplan
+      command: netplan apply

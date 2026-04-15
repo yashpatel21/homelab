@@ -37,7 +37,6 @@ services:
       - APACHE_ADDITIONAL_NETWORK={{ homelab_network_name }}
       - NEXTCLOUD_DATADIR=/storage/nextcloud  # Host path where AIO will store data
       - SKIP_DOMAIN_VALIDATION=true
-      - TZ={{ timezone | default('UTC') }}
 {% if auth_enabled | default(false) %}
       # Allow local remote servers for Authentik OIDC (same host)
       - NEXTCLOUD_TRUSTED_CACERTS_DIR=/etc/ssl/certs

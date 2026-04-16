@@ -1,9 +1,9 @@
 # =============================================================================
 # HOMELAB ANSIBLE VAULT TEMPLATE - SENSITIVE CONFIGURATION
 # =============================================================================
-# 
+#
 # 🔒 THIS FILE CONTAINS SENSITIVE DATA PLACEHOLDERS
-# 
+#
 # INSTRUCTIONS:
 # 1. Copy this file to vault.yml: cp vault_template.yml ./all/vault.yml
 # 2. Replace all "REPLACE_WITH_YOUR_XXX" placeholders with real values
@@ -19,6 +19,9 @@
 vault_cloudflare_api_token: "REPLACE_WITH_YOUR_CLOUDFLARE_API_TOKEN"
 vault_cloudflare_account_id: "REPLACE_WITH_YOUR_CLOUDFLARE_ACCOUNT_ID"
 vault_cloudflare_zone_id: "REPLACE_WITH_YOUR_CLOUDFLARE_ZONE_ID"
+
+# Global API key for Cloudflare API access (DDNS for WireGuard VPN)
+vault_cloudflare_global_api_key: "REPLACE_WITH_YOUR_CLOUDFLARE_GLOBAL_API_KEY"
 
 # How to get these values:
 # 1. Go to Cloudflare Dashboard → My Profile → API Tokens
@@ -343,4 +346,4 @@ vault_authentik_wud_client_secret: "REPLACE_WITH_WUD_OIDC_SECRET"
 # ❌ DON'T:
 # - Commit unencrypted vault.yml to git
 #
-# ============================================================================= 
+# =============================================================================

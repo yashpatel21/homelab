@@ -95,7 +95,7 @@ services:
       AUTHENTIK_LISTEN__HTTPS: "0.0.0.0:9443"
       
       # Trust proxy headers for proper IP detection
-      AUTHENTIK_WEB__TRUSTED_PROXIES: "172.20.0.0/16,{{ ubuntu_server_ip }}/32"
+      AUTHENTIK_WEB__TRUSTED_PROXIES: "{{ docker_network_subnet }},{{ docker_network_subnet_v6 }},{{ ubuntu_server_ip }}/32"
       
       # Email Configuration for password recovery and notifications
 {% if vault_authentik_email_host is defined and vault_authentik_email_username is defined and vault_authentik_email_password is defined %}
@@ -144,6 +144,7 @@ services:
       - "traefik.http.routers.authentik-outpost.rule=Host(`auth.{{ base_domain }}`) || HostRegexp(`{subdomain:[a-z0-9-]+}.{{ base_domain }}`) && PathPrefix(`/outpost.goauthentik.io/`)"
       - "traefik.http.routers.authentik-outpost.entrypoints=websecure"
       - "traefik.http.routers.authentik-outpost.tls.certresolver={{ ssl_cert_resolver }}"
+      - "traefik.http.routers.authentik-outpost.priority=100"
       - "traefik.http.routers.authentik-outpost.service=authentik-outpost"
       - "traefik.http.services.authentik-outpost.loadbalancer.server.port=9000"
       

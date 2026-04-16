@@ -91,16 +91,27 @@ services:
     domain: "{{ base_domain }}" # Root domain
 
   wud:
-    schedule: "0 12 1-7 * 0" # First Sunday of every month at 12pm
+    schedule: "{{ default_update_schedule }}"
+    day_of_week: "{{ default_update_day_of_week }}"
 
 # -----------------------------------------------------------------------------
 # MONITORING CONFIGURATION
 # -----------------------------------------------------------------------------
 
-# System update check schedules (different for each host)
+# Shared default schedule/day gate for first-week monthly checks.
+# Keep per-service vars below for easy overrides.
+default_update_schedule: "0 12 1-7 * *"
+default_update_day_of_week: "0" # Sunday (0=Sunday ... 6=Saturday)
+
+# System update check schedules (overridable per host)
 update_check_schedules:
-  ubuntu_vm: "0 12 1-7 * 0" # First Sunday of every month at 12pm
-  proxmox: "0 12 1-7 * 0" # First Sunday of every month at 12pm
+  ubuntu_vm: "{{ default_update_schedule }}"
+  proxmox: "{{ default_update_schedule }}"
+
+# System update check weekday gates (overridable per host)
+update_check_day_of_week:
+  ubuntu_vm: "{{ default_update_day_of_week }}"
+  proxmox: "{{ default_update_day_of_week }}"
 
 # DNS failover monitoring schedule
 dns_failover_schedule: "* * * * *" # Every minute for OPNsense AdGuard Home failover

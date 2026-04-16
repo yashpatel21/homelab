@@ -1,9 +1,27 @@
 #!/bin/bash
 NTFY_TOKEN="{{ vault_ntfy_token }}"
+REQUIRE_DOW="{{ services.wud.day_of_week }}"
 
 log() { 
     echo "[$(date)] $1" >&2
 }
+
+# Optional weekday gate (0=Sunday ... 6=Saturday; same as date +%w).
+if [ -n "${REQUIRE_DOW}" ]; then
+    case "${REQUIRE_DOW}" in
+        [0-6]) ;;
+        *)
+            log "ERROR: services.wud.day_of_week must be 0-6, got: ${REQUIRE_DOW}"
+            exit 1
+            ;;
+    esac
+
+    TODAY_DOW="$(date +%w)"
+    if [ "${TODAY_DOW}" != "${REQUIRE_DOW}" ]; then
+        log "Skipping WUD notification: weekday ${TODAY_DOW} != required ${REQUIRE_DOW}"
+        exit 0
+    fi
+fi
 
 send_notification() { 
     curl -s -X POST "http://ntfy:80/homelab-updates" \

@@ -2,7 +2,7 @@
 # =============================================================================
 # DEPLOY NEWT TUNNELING CLIENT PLAYBOOK
 # =============================================================================
-# 
+#
 # This playbook deploys Newt, the client component for Pangolin secure tunneling.
 # Newt establishes encrypted tunnels to the Pangolin server without requiring
 # port forwarding or direct internet exposure.
@@ -42,7 +42,7 @@
   vars:
     service_name: "newt"
     compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
-    
+
   pre_tasks:
     - name: "🔍 Verify Prerequisites"
       block:
@@ -50,12 +50,12 @@
           fail:
             msg: |
               ❌ ERROR: Required vault variables missing.
-              
+
               Please ensure these variables are configured in vault.yml:
               - vault_pangolin_endpoint
               - vault_newt_id
               - vault_newt_secret
-              
+
               Example configuration:
               vault_pangolin_endpoint: "https://pangolin.radiowaves.app"
               vault_newt_id: "your-newt-id"
@@ -69,37 +69,26 @@
           debug:
             msg: |
               ✅ Prerequisites Check Passed
-              
+
               📋 Configuration Status:
               - Pangolin Endpoint: {{ vault_pangolin_endpoint }}
               - Newt ID: {{ vault_newt_id[:8] }}...
               - base_domain: {{ base_domain }}
-              
+
               🚀 Ready to proceed with Newt deployment
 
   tasks:
     # =============================================================================
-    # SETUP: Directory and Configuration Creation
+    # SETUP: Configuration Creation
     # =============================================================================
-    
-    - name: "Setup - Create Newt directories"
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: "{{ ubuntu_primary_user }}"
-        group: "{{ ubuntu_primary_user }}"
-        mode: '0755'
-      loop:
-        - "{{ data_directory }}/{{ service_name }}"
-        - "{{ data_directory }}/{{ service_name }}/config"
-        - "{{ data_directory }}/{{ service_name }}/logs"
+
     - name: "Setup - Generate Docker Compose file from template"
       template:
         src: "newt-compose.yml.j2"
         dest: "{{ compose_file }}"
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
-        mode: '0644'
+        mode: "0644"
         backup: yes
       register: compose_updated
     - name: "Setup - Display compose file location"
@@ -116,7 +105,7 @@
       failed_when: false
     - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
-      when: 
+      when:
         - running_containers.stdout != ""
         - "compose_updated.changed"
     - name: "Deploy - Pull latest container images"
@@ -151,7 +140,7 @@
         msg: |
           📋 NEWT CONNECTION STATUS:
           {{ newt_logs.stdout_lines | join('\n') }}
-          
+
           💡 Check logs for successful tunnel establishment to Pangolin server
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
@@ -163,4 +152,3 @@
           ✅ Newt tunneling client deployed successfully
           🔗 Tunnel endpoint: {{ vault_pangolin_endpoint }}
           ⚠️  Monitor logs for tunnel connection and configure Pangolin routing
-

@@ -2,7 +2,7 @@
 # =============================================================================
 # PHASE 4: Family Services - IT Tools Deployment
 # =============================================================================
-# 
+#
 # This playbook deploys IT Tools, a collection of handy online utilities for
 # developers and IT professionals including network tools, text processing,
 # encoding/decoding, generators, and converters.
@@ -44,29 +44,19 @@
     service_name: "it-tools"
     compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
     ssl_cert_resolver: "myresolver"
-    
+
   tasks:
     # =============================================================================
-    # SETUP: Directory and Configuration Creation
+    # SETUP: Configuration Creation
     # =============================================================================
-    
-    - name: "Setup - Create IT Tools directories"
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: "{{ ubuntu_primary_user }}"
-        group: "{{ ubuntu_primary_user }}"
-        mode: '0755'
-      loop:
-        - "{{ data_directory }}/{{ service_name }}"
-        - "{{ data_directory }}/{{ service_name }}/config"
+
     - name: "Setup - Generate Docker Compose file from template"
       template:
         src: "it-tools-compose.yml.j2"
         dest: "{{ compose_file }}"
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
-        mode: '0644'
+        mode: "0644"
         backup: yes
       register: compose_updated
     - name: "Setup - Display configuration file locations"
@@ -74,7 +64,6 @@
         msg: |
           📋 IT TOOLS CONFIGURATION FILES:
           • Docker Compose file: {{ compose_file }}
-          • Service directory: {{ data_directory }}/{{ service_name }}
     # =============================================================================
     # DEPLOY: Service Deployment and Management
     # =============================================================================
@@ -88,7 +77,7 @@
       debug:
         msg: |
           🔍 IT TOOLS DEPLOYMENT CHECK:
-          
+
           {% if existing_containers.stdout %}
           ⚠️  Existing IT Tools container found:
           {{ existing_containers.stdout }}
@@ -102,7 +91,7 @@
       failed_when: false
     - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
-      when: 
+      when:
         - running_containers.stdout != ""
         - "compose_updated.changed"
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
@@ -123,11 +112,6 @@
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-    - name: "Deploy - Wait for IT Tools to be ready"
-      wait_for:
-        port: 80
-        host: "{{ ubuntu_server_ip }}"
-        timeout: 60
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
     # =============================================================================
@@ -152,13 +136,13 @@
       debug:
         msg: |
           📡 IT TOOLS ACCESS TEST RESULTS:
-          
+
           {% if traefik_test is defined %}
           • HTTPS Access: {{ '✅ Success' if traefik_test.status in [200, 302] else '❌ Failed (' + (traefik_test.status | string) + ')' }}
           {% else %}
           • HTTPS Access: ⏳ SSL certificates may take 1-2 minutes to generate
           {% endif %}
-          
+
           💡 Note: Access IT Tools at https://ittools.{{ base_domain }}
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
@@ -170,4 +154,3 @@
           ✅ IT Tools deployed successfully
           🛠️ Developer utilities: https://ittools.{{ base_domain }}
           ⚠️  Configure DNS override for ittools.{{ base_domain }}
-

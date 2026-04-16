@@ -19,7 +19,7 @@ networks:
 
 services:
   it-tools:
-    image: corentinth/it-tools:2024.10.22-7ca5933
+    image: ghcr.io/sharevb/it-tools:2026.1.4
     container_name: it-tools
     restart: always
     networks:
@@ -34,13 +34,13 @@ services:
       # Forward authentication to Authentik for developer tools access
       - "traefik.http.routers.it-tools.middlewares=authentik@file"
 {% endif %}
-      - "traefik.http.services.it-tools.loadbalancer.server.port=80"
+      - "traefik.http.services.it-tools.loadbalancer.server.port=8080"
       
-      # WUD update notifications - Date-based versioning (YYYY.MM.DD-hash format)
+      # WUD update notifications - Calendar versioning (YYYY.M.PATCH)
       - "wud.watch=true"
-      - "wud.tag.include=^20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{2}(-[a-f0-9]+)?$"
+      - "wud.tag.include=^20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]+$"
       - "wud.tag.exclude=alpha|beta|rc|dev"
-      - "wud.tag.transform=^(20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{2})(-[a-f0-9]+)?$ => $1"
+      - "wud.tag.transform=^(20[0-9]{2}\\.[0-9]{1,2}\\.[0-9]+)$ => $1"
       - "wud.trigger.include=command.ntfy"
       - "wud.display.name=IT Tools"
-      - "wud.link.template=https://github.com/CorentinTh/it-tools/releases/tag/v$${raw}"
+      - "wud.link.template=https://github.com/sharevb/it-tools/releases/tag/v$${raw}"

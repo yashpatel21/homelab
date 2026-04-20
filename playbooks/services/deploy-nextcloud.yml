@@ -2,7 +2,7 @@
 # =============================================================================
 # PHASE 4: Family Services - Nextcloud All-in-One Platform Deployment
 # =============================================================================
-# 
+#
 # This playbook deploys Nextcloud All-in-One (AIO) platform for file
 # synchronization, collaboration, and family productivity services.
 #
@@ -49,19 +49,19 @@
     compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
     traefik_config_file: "{{ data_directory }}/traefik/dynamic/{{ service_name }}.yml"
     ssl_cert_resolver: "myresolver"
-    
+
   tasks:
     # =============================================================================
     # SETUP: Directory and Configuration Creation
     # =============================================================================
-    
+
     - name: "Setup - Create Nextcloud directories"
       file:
         path: "{{ item }}"
         state: directory
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
-        mode: '0755'
+        mode: "0755"
       loop:
         - "{{ data_directory }}/{{ service_name }}"
         - "{{ data_directory }}/{{ service_name }}/data"
@@ -73,7 +73,7 @@
         dest: "{{ traefik_config_file }}"
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
-        mode: '0644'
+        mode: "0644"
       register: traefik_config_updated
     - name: "Setup - Generate Docker Compose file from template"
       template:
@@ -81,15 +81,23 @@
         dest: "{{ compose_file }}"
         owner: "{{ ubuntu_primary_user }}"
         group: "{{ ubuntu_primary_user }}"
-        mode: '0644'
+        mode: "0644"
         backup: yes
       register: compose_updated
+
+    - name: "Setup - Ensure dedicated Traefik Docker network exists (Nextcloud)"
+      docker_network:
+        name: "{{ traefik_routed_services.nextcloud.network }}"
+        driver: bridge
+        enable_ipv6: true
+      when: traefik_routed_services.nextcloud.enabled | default(false) | bool
+
     - name: "Setup - Set Nextcloud storage directory permissions"
       file:
         path: "/storage/{{ service_name }}"
-        owner: "33"  # www-data user in Nextcloud AIO Apache container
-        group: "33"  # www-data group in Nextcloud AIO Apache container
-        mode: '0755'
+        owner: "33" # www-data user in Nextcloud AIO Apache container
+        group: "33" # www-data group in Nextcloud AIO Apache container
+        mode: "0755"
         recurse: yes
     - name: "Setup - Display configuration file locations"
       debug:
@@ -116,14 +124,14 @@
       debug:
         msg: |
           🔍 NEXTCLOUD DEPLOYMENT CHECK:
-          
+
           {% if existing_nextcloud_containers.stdout %}
           ⚠️  Existing Nextcloud containers found:
           {{ existing_nextcloud_containers.stdout }}
           {% else %}
           ✅ No existing Nextcloud containers found
           {% endif %}
-          
+
           {% if port_9080_conflicts.stdout %}
           ⚠️  Port 9080 conflict detected:
           {{ port_9080_conflicts.stdout }}
@@ -138,7 +146,7 @@
       failed_when: false
     - name: "Deploy - Stop existing containers (if compose file changed)"
       command: "docker compose -f {{ compose_file }} down"
-      when: 
+      when:
         - running_containers.stdout != ""
         - "compose_updated.changed"
     - name: "Deploy - Remove conflicting containers (automatic cleanup)"
@@ -159,11 +167,59 @@
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
+    # Loopback: same-host TCP to ubuntu_server_ip:9080 can fail under some firewall/routing setups.
     - name: "Deploy - Wait for Nextcloud AIO to be ready"
       wait_for:
         port: 9080
-        host: "{{ ubuntu_server_ip }}"
-        timeout: 120
+        host: "127.0.0.1"
+        delay: 5
+        timeout: 300
+
+    # Nextcloud-AIO exception: child containers (e.g. nextcloud-aio-apache) are not in this
+    # compose file—only the master is. Redeploying the master does not recreate Apache, and AIO
+    # only runs the extra attach for APACHE_ADDITIONAL_NETWORK on its full start path, so Apache
+    # can stay off the Traefik bridge even when that network exists. docker network connect here
+    # matches AIO’s own connect call and keeps per-service Traefik routing without homelab.
+    - name: "Deploy - Ensure nextcloud-aio-apache joins Nextcloud Traefik isolation
+        network"
+      when: traefik_routed_services.nextcloud.enabled | default(false) | bool
+      block:
+        - name: "Deploy - Wait for nextcloud-aio-apache container (AIO creates it after
+            master)"
+          command: "docker inspect nextcloud-aio-apache --format '{{ '{{' }}json
+            .NetworkSettings.Networks{{ '}}' }}'"
+          register: apache_networks_json
+          until: apache_networks_json.rc == 0 and apache_networks_json.stdout | length > 2
+          retries: 36
+          delay: 10
+          changed_when: false
+          failed_when: false
+
+        - name: "Deploy - Connect nextcloud-aio-apache to Traefik isolation network if
+            missing"
+          vars:
+            _nc_tf_net: "{{ traefik_routed_services.nextcloud.network }}"
+            _keys: "{{ (apache_networks_json.stdout | default('{}', true)) | from_json |
+              dict2items | map(attribute='key') | list }}"
+          command: "docker network connect {{ _nc_tf_net }} nextcloud-aio-apache"
+          when:
+            - apache_networks_json.rc == 0
+            - _nc_tf_net not in _keys
+          register: apache_net_connect
+          changed_when: not (apache_net_connect.skipped | default(false)) and
+            apache_net_connect.rc == 0
+          failed_when: >-
+            not (apache_net_connect.skipped | default(false)) and
+            (apache_net_connect.rc | default(1)) != 0
+
+    - name: "Deploy - Redeploy Traefik to join Nextcloud Traefik network"
+      ansible.builtin.include_role:
+        name: traefik
+      vars:
+        service_name: traefik
+        compose_file: "{{ data_directory }}/compose/traefik-compose.yml"
+      when: traefik_routed_services.nextcloud.enabled | default(false) | bool
+
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
     # =============================================================================
@@ -175,20 +231,22 @@
     - name: "Verify - Display container status"
       debug:
         msg: "{{ container_status.stdout_lines }}"
-    - name: "Verify - Test Nextcloud AIO direct access"
+    - name: "Verify - Test Nextcloud AIO direct access (LAN HTTPS)"
       uri:
-        url: "http://{{ ubuntu_server_ip }}:9080"
+        url: "https://{{ ubuntu_server_ip }}:9080/containers"
         method: GET
-        timeout: 10
+        timeout: 15
+        validate_certs: false
+        follow_redirects: all
       register: direct_access_test
       failed_when: false
-    - name: "Verify - Test Nextcloud AIO via Traefik (if SSL configured)"
+    - name: "Verify - Test aio subdomain via Traefik (optional)"
       uri:
         url: "https://aio.{{ base_domain }}"
         method: GET
-        timeout: 10
+        timeout: 15
         validate_certs: false
-        status_code: [200, 302]
+        follow_redirects: all
       register: traefik_aio_test
       failed_when: false
     - name: "Verify - Check Traefik dynamic configuration"
@@ -202,24 +260,27 @@
 
     - name: "Configure - Trust loopback for local health (trusted_proxies)"
       command: >-
-        docker exec --user www-data nextcloud-aio-nextcloud
-        php occ config:system:set trusted_proxies 0 --value=127.0.0.1 --type=string
+        docker exec --user www-data nextcloud-aio-nextcloud php occ
+        config:system:set trusted_proxies 0 --value=127.0.0.1 --type=string
       when: nc_aio_app_container.stdout | length > 0
       register: occ_trusted_proxy_loopback
       changed_when: "'trusted_proxies' in occ_trusted_proxy_loopback.stdout"
 
-    - name: "Configure - Trust Traefik Docker network for X-Forwarded-For (trusted_proxies)"
+    - name: "Configure - Trust Traefik Docker network for X-Forwarded-For
+        (trusted_proxies)"
       command: >-
-        docker exec --user www-data nextcloud-aio-nextcloud
-        php occ config:system:set trusted_proxies 1 --value={{ docker_network_subnet }} --type=string
+        docker exec --user www-data nextcloud-aio-nextcloud php occ
+        config:system:set trusted_proxies 1 --value={{ docker_network_subnet }}
+        --type=string
       when: nc_aio_app_container.stdout | length > 0
       register: occ_trusted_proxy_docker
       changed_when: "'trusted_proxies' in occ_trusted_proxy_docker.stdout"
 
-    - name: "Configure - Allow OIDC discovery when Authentik resolves to LAN (split DNS)"
+    - name: "Configure - Allow OIDC discovery when Authentik resolves to LAN (split
+        DNS)"
       command: >-
-        docker exec --user www-data nextcloud-aio-nextcloud
-        php occ config:system:set allow_local_remote_servers --type=bool --value=true
+        docker exec --user www-data nextcloud-aio-nextcloud php occ
+        config:system:set allow_local_remote_servers --type=bool --value=true
       when:
         - auth_enabled | default(false) | bool
         - nc_aio_app_container.stdout | length > 0
@@ -229,25 +290,39 @@
     - name: "Verify - Display access test results"
       debug:
         msg: |
+          {% set ds = direct_access_test.status | default(-1, true) | int %}
+          {% set ts = traefik_aio_test.status | default(-1, true) | int %}
           📡 NEXTCLOUD AIO ACCESS TEST RESULTS:
-          
-          {% if direct_access_test is defined %}
-          • Direct Access (Port 9080): {{ '✅ Success' if direct_access_test.status == 200 else '❌ Failed (' + (direct_access_test.status | string) + ')' }}
-          {% endif %}
-          
-          {% if traefik_aio_test is defined %}
-          • Traefik Access (HTTPS): {{ '✅ Success' if traefik_aio_test.status in [200, 302] else '❌ Failed (' + (traefik_aio_test.status | string) + ')' }}
+
+          • Direct (https://{{ ubuntu_server_ip }}:9080/containers):
+          {% if ds in [200, 201, 301, 302, 303, 307, 308] %}
+            ✅ Reachable (HTTP {{ ds }})
+          {% elif ds in [400, 401, 403] %}
+            ✅ AIO responded on 9080 (HTTP {{ ds }} — often normal; confirm in browser if unsure)
+          {% elif ds == -1 %}
+            ⚠️ Ansible could not complete HTTPS check from the target host (TLS/path). If the UI opens in a browser, ignore this line.
           {% else %}
-          • Traefik Access: ⏳ SSL certificates may take 1-2 minutes to generate
+            ⚠️ HTTP {{ ds }} — if https://{{ ubuntu_server_ip }}:9080/containers loads in a browser, the deploy is fine.
           {% endif %}
-          
+
+          • aio.{{ base_domain }} (Traefik, optional):
+          {% if ts in [200, 201, 301, 302, 303, 307, 308] %}
+            ✅ Reachable (HTTP {{ ts }})
+          {% elif ts in [401, 403, 404, 502, 503] %}
+            ⚠️ HTTP {{ ts }} — router or upstream may differ; LAN URL above is authoritative for AIO.
+          {% elif ts == -1 %}
+            ⏭️ No response from Ansible host (unrouted aio name, DNS, or right after Traefik restart). Use https://{{ ubuntu_server_ip }}:9080 unless you add an aio router.
+          {% else %}
+            ⚠️ HTTP {{ ts }}
+          {% endif %}
+
           {% if traefik_config_check.stat.exists %}
-          • Traefik Config: ✅ Dynamic configuration deployed
+          • Traefik dynamic (cloud): ✅ {{ traefik_config_file }}
           {% else %}
-          • Traefik Config: ❌ Dynamic configuration missing
+          • Traefik dynamic (cloud): ❌ missing
           {% endif %}
-          
-          💡 Note: Initial AIO setup required at https://aio.{{ base_domain }} or http://{{ ubuntu_server_ip }}:9080
+
+          💡 AIO setup: https://{{ ubuntu_server_ip }}:9080 (and https://aio.{{ base_domain }} if you route it in Traefik)
     # =============================================================================
     # SUMMARY: Deployment Summary and Next Steps
     # =============================================================================
@@ -259,4 +334,3 @@
           🌐 AIO Admin: https://aio.{{ base_domain }}
           📁 Future Nextcloud: https://cloud.{{ base_domain }} (after AIO setup)
           ⚠️  Complete AIO setup wizard and configure cloud.{{ base_domain }} domain
-

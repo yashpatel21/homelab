@@ -64,6 +64,61 @@ docker_compose_version: "v2.38.1"
 ssl_cert_resolver: "myresolver"
 
 # -----------------------------------------------------------------------------
+# TRAEFIK PER-SERVICE DOCKER NETWORKS
+# -----------------------------------------------------------------------------
+#
+# Core services stay on `homelab` for internal DNS. Traefik does not join homelab;
+# each routed service uses a dedicated `<name>-traefik` bridge that Traefik and
+# that service join (file-provider / docker labels use those networks).
+#
+# enabled: true  → Traefik compose joins that external network (must already
+#                  exist except whoami: the traefik role creates whoami-traefik
+#                  only). Each service playbook should create its *-traefik
+#                  bridge with docker_network, deploy the stack, then
+#                  include_role: traefik.
+# enabled: false → Traefik does not join; service compose should not reference
+#                  the dedicated network until you enable it here first.
+#
+# Optional Portainer-only apps use traefik_side_projects in vault.yml (see
+# vault_template.yml commented example), not this file.
+# -----------------------------------------------------------------------------
+
+traefik_routed_services:
+  whoami:
+    enabled: true
+    network: "whoami-traefik"
+  adguard:
+    enabled: true
+    network: "adguard-traefik"
+  ntfy:
+    enabled: true
+    network: "ntfy-traefik"
+  uptime_kuma:
+    enabled: true
+    network: "uptime-kuma-traefik"
+  homarr:
+    enabled: true
+    network: "homarr-traefik"
+  wud:
+    enabled: true
+    network: "wud-traefik"
+  prometheus_grafana:
+    enabled: true
+    network: "prometheus-grafana-traefik"
+  it_tools:
+    enabled: true
+    network: "it-tools-traefik"
+  convertx:
+    enabled: true
+    network: "convertx-traefik"
+  nextcloud:
+    enabled: true
+    network: "nextcloud-traefik"
+  authentik:
+    enabled: true
+    network: "authentik-traefik"
+
+# -----------------------------------------------------------------------------
 # SERVICE CONFIGURATION
 # -----------------------------------------------------------------------------
 
@@ -125,10 +180,9 @@ dns_failover_schedule: "* * * * *" # Every minute for OPNsense AdGuard Home fail
 auth_enabled: true
 # User Groups with Access Control
 homelab_user_groups:
-  admins: ["yash"] # Full access to everything
-  operators: ["dushyant"] # Full AdGuard + View-only admin services + Regular user family services
-  family: ["leena", "ria"] # NextCloud + Homarr only
-
+  admins: [ "yash" ] # Full access to everything
+  operators: [ "dushyant" ] # Full AdGuard + View-only admin services + Regular user family services
+  family: [ "leena", "ria" ] # NextCloud + Homarr only
 
 # =============================================================================
 # IMPORTANT NOTES
@@ -144,4 +198,3 @@ homelab_user_groups:
 # 3. Encrypt: ansible-vault encrypt group_vars/all/vault.yml
 #
 # =============================================================================
-

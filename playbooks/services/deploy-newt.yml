@@ -10,7 +10,7 @@
 # Prerequisites:
 # - Pangolin server configured and operational
 # - Newt credentials (ID and secret) configured in vault.yml
-# - Docker running with homelab network created
+# - Docker running (Newt uses a dedicated compose bridge `newt`)
 #
 # What this playbook does:
 # 1. Creates Newt service directories
@@ -26,7 +26,8 @@
 # Manual Configuration Required:
 # - Pangolin server setup and configuration
 # - Newt credentials (ID and secret) in vault.yml
-# - Pangolin routing configuration for homelab services
+# - Pangolin HTTPS resources targeting the Ubuntu host (e.g. ubuntu_server_ip:443)
+#   with per-service Host headers so Traefik can route (see deploy-pangolin.md)
 #
 # Usage:
 # ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-newt.yml --ask-vault-pass

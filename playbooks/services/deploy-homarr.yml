@@ -74,6 +74,12 @@
         backup: yes
       register: compose_updated
 
+    - name: "Setup - Ensure dedicated Traefik Docker network exists (Homarr)"
+      docker_network:
+        name: "{{ traefik_routed_services.homarr.network }}"
+        driver: bridge
+        enable_ipv6: true
+      when: traefik_routed_services.homarr.enabled | default(false) | bool
 
     - name: "Setup - Display compose file location"
       debug:
@@ -142,6 +148,13 @@
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
 
+    - name: "Deploy - Redeploy Traefik to join Homarr Traefik network"
+      ansible.builtin.include_role:
+        name: traefik
+      vars:
+        service_name: traefik
+        compose_file: "{{ data_directory }}/compose/traefik-compose.yml"
+      when: traefik_routed_services.homarr.enabled | default(false) | bool
 
     - name: "Deploy - Wait for Homarr service to be ready"
       uri:

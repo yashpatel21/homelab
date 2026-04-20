@@ -24,11 +24,17 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.uptime_kuma.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.uptime_kuma.network }}
+{% endif %}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.uptime-kuma.rule=Host(`uptime.{{ base_domain }}`)"
       - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
       - "traefik.http.routers.uptime-kuma.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.uptime_kuma.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.uptime_kuma.network }}"
+{% endif %}
 {% if auth_enabled | default(false) %}
       # Single router with main authentik middleware
       - "traefik.http.routers.uptime-kuma.middlewares=authentik@file"
@@ -45,3 +51,7 @@ services:
 networks:
   {{ homelab_network_name }}:
     external: true
+{% if traefik_routed_services.uptime_kuma.enabled | default(false) | bool %}
+  {{ traefik_routed_services.uptime_kuma.network }}:
+    external: true
+{% endif %}

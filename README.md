@@ -82,7 +82,7 @@ This project implements a **fully automated, reproducible homelab infrastructure
 
 -   **Encrypted Secrets Management** - All sensitive data stored in Ansible Vault
 -   **SSL/TLS Everywhere** - Automated certificate management for all services
--   **Container Isolation** - Docker containerization with shared homelab network
+-   **Container Isolation** - Docker containerization on the shared `homelab` bridge for east-west traffic, plus dedicated `*-traefik` bridges between Traefik and each HTTPS-routed app (`traefik_routed_services` in `vars.yml`)
 -   **System Hardening** - Ubuntu security configurations and firewall rules
 
 ### Authentication & Access Control
@@ -161,7 +161,7 @@ Internet → Cloudflare → Pangolin VPS → Encrypted Tunnel → Homelab
 
 -   **External Traffic** - Cloudflare DNS → Pangolin tunneling → Traefik reverse proxy
 -   **Authentication** - Authentik SSO with forward auth and OIDC integration
--   **Internal Communication** - Docker networks with service discovery
+-   **Internal Communication** - `homelab` for stack-to-stack DNS; Traefik reaches public web apps only over each service’s `*-traefik` bridge (labels `traefik.docker.network`, file routes where used)
 -   **Monitoring Data** - Prometheus metrics collection → Grafana visualization
 
 ### Data Management
@@ -213,7 +213,7 @@ ansible-vault encrypt vault.yml
 # 3. Deploy infrastructure
 ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-base.yml --ask-vault-pass
 
-# 4. Deploy services by phase
+# 4. Deploy services by phase (set traefik_routed_services in inventory/group_vars/all/vars.yml per service before each deploy-* playbook)
 ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-traefik.yml --ask-vault-pass
 # Continue with remaining services...
 ```

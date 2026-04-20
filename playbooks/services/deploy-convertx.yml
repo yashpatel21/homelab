@@ -71,6 +71,14 @@
         mode: '0644'
         backup: yes
       register: compose_updated
+
+    - name: "Setup - Ensure dedicated Traefik Docker network exists (ConvertX)"
+      docker_network:
+        name: "{{ traefik_routed_services.convertx.network }}"
+        driver: bridge
+        enable_ipv6: true
+      when: traefik_routed_services.convertx.enabled | default(false) | bool
+
     - name: "Setup - Display configuration file locations"
       debug:
         msg: |
@@ -131,6 +139,15 @@
         port: 3000
         host: "{{ ubuntu_server_ip }}"
         timeout: 60
+
+    - name: "Deploy - Redeploy Traefik to join ConvertX Traefik network"
+      ansible.builtin.include_role:
+        name: traefik
+      vars:
+        service_name: traefik
+        compose_file: "{{ data_directory }}/compose/traefik-compose.yml"
+      when: traefik_routed_services.convertx.enabled | default(false) | bool
+
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
     # =============================================================================

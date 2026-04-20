@@ -29,6 +29,28 @@ vault_cloudflare_global_api_key: "REPLACE_WITH_YOUR_CLOUDFLARE_GLOBAL_API_KEY"
 # 3. Account ID and Zone ID are found in the right sidebar of your domain overview
 
 # -----------------------------------------------------------------------------
+# OPTIONAL: TRAEFIK SIDE PROJECTS (Portainer / private apps)
+# -----------------------------------------------------------------------------
+#
+# Not used by Ansible-managed core stacks (those use traefik_routed_services in
+# vars.yml). Put side-project Traefik network names here so they stay out of Git.
+#
+# When enabled: true, create the Docker network first (Traefik role does not
+# create side-project networks), then re-run deploy-traefik.yml so Traefik joins.
+# Deploy the app in Portainer with a private app network plus the matching
+# *-traefik network; do not attach public side projects to homelab.
+#
+# Example (uncomment and copy into vault.yml):
+#
+# traefik_side_projects:
+#   portfolio_app:
+#     enabled: false
+#     network: "portfolio-app-traefik"
+#   sideproject_api:
+#     enabled: false
+#     network: "sideproject-api-traefik"
+
+# -----------------------------------------------------------------------------
 # SSH KEY CONFIGURATION
 # -----------------------------------------------------------------------------
 # SSH public keys for accessing servers

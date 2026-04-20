@@ -59,6 +59,14 @@
         mode: "0644"
         backup: yes
       register: compose_updated
+
+    - name: "Setup - Ensure dedicated Traefik Docker network exists (IT Tools)"
+      docker_network:
+        name: "{{ traefik_routed_services.it_tools.network }}"
+        driver: bridge
+        enable_ipv6: true
+      when: traefik_routed_services.it_tools.enabled | default(false) | bool
+
     - name: "Setup - Display configuration file locations"
       debug:
         msg: |
@@ -112,6 +120,15 @@
       command: "docker compose -f {{ compose_file }} up -d"
       register: deploy_result
       changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
+
+    - name: "Deploy - Redeploy Traefik to join IT Tools Traefik network"
+      ansible.builtin.include_role:
+        name: traefik
+      vars:
+        service_name: traefik
+        compose_file: "{{ data_directory }}/compose/traefik-compose.yml"
+      when: traefik_routed_services.it_tools.enabled | default(false) | bool
+
     # =============================================================================
     # VERIFY: Service Verification and Health Checks
     # =============================================================================

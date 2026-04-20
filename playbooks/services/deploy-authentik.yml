@@ -301,12 +301,27 @@
             mode: '0644'
             backup: yes
 
+        - name: Ensure dedicated Traefik Docker network exists (Authentik)
+          docker_network:
+            name: "{{ traefik_routed_services.authentik.network }}"
+            driver: bridge
+            enable_ipv6: true
+          when: traefik_routed_services.authentik.enabled | default(false) | bool
+
         - name: Deploy Authentik infrastructure
           shell: |
             cd {{ data_directory }}/compose
             docker compose -f {{ authentik_compose_file | basename }} pull
             docker compose -f {{ authentik_compose_file | basename }} up -d
           become_user: "{{ ubuntu_primary_user }}"
+
+        - name: Redeploy Traefik to join Authentik Traefik network
+          ansible.builtin.include_role:
+            name: traefik
+          vars:
+            service_name: traefik
+            compose_file: "{{ data_directory }}/compose/traefik-compose.yml"
+          when: traefik_routed_services.authentik.enabled | default(false) | bool
 
         - name: Wait for Authentik to be ready
           uri:

@@ -18,6 +18,10 @@
 networks:
   {{ homelab_network_name }}:
     external: true
+{% if traefik_routed_services.convertx.enabled | default(false) | bool %}
+  {{ traefik_routed_services.convertx.network }}:
+    external: true
+{% endif %}
 
 services:
   convertx:
@@ -26,6 +30,9 @@ services:
     restart: unless-stopped
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.convertx.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.convertx.network }}
+{% endif %}
     environment:
       # JWT Authentication (secure token from vault)
       - "JWT_SECRET={{ vault_convertx_jwt_secret }}"
@@ -59,6 +66,9 @@ services:
       - "traefik.http.routers.convertx.rule=Host(`convert.{{ base_domain }}`)"
       - "traefik.http.routers.convertx.entrypoints=websecure"
       - "traefik.http.routers.convertx.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.convertx.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.convertx.network }}"
+{% endif %}
 {% if auth_enabled | default(false) %}
       # Forward authentication to Authentik - JWT auth bypassed via ALLOW_UNAUTHENTICATED
       - "traefik.http.routers.convertx.middlewares=authentik@file"

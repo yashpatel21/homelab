@@ -27,6 +27,9 @@ services:
     user: "65534:65534"  # nobody user for security
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.prometheus_grafana.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.prometheus_grafana.network }}
+{% endif %}
     ports:
       - "127.0.0.1:9090:9090"
     command:
@@ -45,6 +48,9 @@ services:
       - "traefik.http.routers.prometheus.rule=Host(`prometheus.{{ base_domain }}`)"
       - "traefik.http.routers.prometheus.entrypoints=websecure"
       - "traefik.http.routers.prometheus.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.prometheus_grafana.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.prometheus_grafana.network }}"
+{% endif %}
 {% if auth_enabled | default(false) %}
       # Forward authentication to Authentik for metrics database access (admin/operators only)
       - "traefik.http.routers.prometheus.middlewares=authentik@file"
@@ -70,6 +76,9 @@ services:
     user: "472:472"  # grafana user
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.prometheus_grafana.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.prometheus_grafana.network }}
+{% endif %}
     ports:
       - "127.0.0.1:3001:3000"
     environment:
@@ -109,6 +118,9 @@ services:
       - "traefik.http.routers.grafana.rule=Host(`grafana.{{ base_domain }}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.prometheus_grafana.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.prometheus_grafana.network }}"
+{% endif %}
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
       # WUD update notifications - Major/Minor only with semantic versioning
       - "wud.watch=true"
@@ -245,4 +257,8 @@ services:
 # ===========================================================================
 networks:
   {{ homelab_network_name }}:
-    external: true 
+    external: true
+{% if traefik_routed_services.prometheus_grafana.enabled | default(false) | bool %}
+  {{ traefik_routed_services.prometheus_grafana.network }}:
+    external: true
+{% endif %}

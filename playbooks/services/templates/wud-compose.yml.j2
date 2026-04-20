@@ -55,6 +55,9 @@ services:
     # Network configuration
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.wud.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.wud.network }}
+{% endif %}
     
     # Service labels
     labels:
@@ -63,6 +66,9 @@ services:
       - "traefik.http.routers.wud.rule=Host(`wud.{{ base_domain }}`)"
       - "traefik.http.routers.wud.entrypoints=websecure"
       - "traefik.http.routers.wud.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.wud.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.wud.network }}"
+{% endif %}
       - "traefik.http.services.wud.loadbalancer.server.port=3000"
       
       # WUD self-monitoring - Major/Minor only with semantic versioning
@@ -76,4 +82,8 @@ services:
 # Network configuration
 networks:
   {{ homelab_network_name }}:
-    external: true 
+    external: true
+{% if traefik_routed_services.wud.enabled | default(false) | bool %}
+  {{ traefik_routed_services.wud.network }}:
+    external: true
+{% endif %}

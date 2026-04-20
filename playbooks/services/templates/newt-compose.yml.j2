@@ -2,12 +2,16 @@
 # =============================================================================
 # Newt Tunneling Client
 # =============================================================================
-# 
+#
 # This Docker Compose file deploys Newt client with:
 # - Secure tunnel client for Pangolin server
 # - Encrypted tunnel without port forwarding
 # - WUD labels for update notifications
-# - Homelab network integration
+# - Dedicated bridge network `newt` so the tunnel client is not
+#   on the core service network; Pangolin resources target the Ubuntu host
+#   HTTPS entrypoint (e.g. {{ ubuntu_server_ip }}:443) with the correct Host
+#   header, and Traefik routes on the host. Newt does not need container-level
+#   reachability to homelab services.
 # - Environment-based authentication
 #
 # Generated from Ansible template: newt-compose.yml.j2
@@ -23,7 +27,7 @@ services:
       - NEWT_ID={{ vault_newt_id }}
       - NEWT_SECRET={{ vault_newt_secret }}
     networks:
-      - {{ homelab_network_name }}
+      - newt
     labels:
       # WUD update notifications - Major/Minor only with semantic versioning
       - "wud.watch=true"
@@ -34,5 +38,5 @@ services:
       - "wud.link.template=https://github.com/fosrl/newt/releases/tag/$${raw}"
 
 networks:
-  {{ homelab_network_name }}:
-    external: true 
+  newt:
+    driver: bridge

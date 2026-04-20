@@ -2,9 +2,16 @@
 # =============================================================================
 # PHASE 2: Core Services - Traefik Reverse Proxy Deployment
 # =============================================================================
-# 
+#
 # This playbook deploys Traefik reverse proxy with SSL automation, creating
 # the foundation for all other web services in your homelab.
+#
+# Implementation: thin wrapper around the `traefik` Ansible role
+# (roles/traefik/). The role creates only whoami-traefik (when whoami is enabled);
+# all other *-traefik bridges are created by their service playbooks,
+# then Traefik's compose template joins every enabled network. Other
+# playbooks should include_role: traefik after deploy using docker_network for
+# idempotent network creation.
 #
 # Prerequisites:
 # - Phase 1 infrastructure setup completed
@@ -14,13 +21,15 @@
 #
 # What this playbook does:
 # 1. Creates Traefik configuration directories
-# 2. Deploys Traefik Docker Compose stack with SSL automation
-# 3. Configures Let's Encrypt certificates via Cloudflare DNS
-# 4. Deploys whoami test service for SSL verification
-# 5. Verifies service deployment and SSL functionality
+# 2. Ensures whoami-traefik exists when Whoami routing is enabled (idempotent)
+# 3. Deploys Traefik Docker Compose stack with SSL automation
+# 4. Configures Let's Encrypt certificates via Cloudflare DNS
+# 5. Deploys whoami test service for SSL verification
+# 6. Verifies service deployment and SSL functionality
 #
 # Idempotent Design:
 # - Safe to run multiple times
+# - whoami-traefik uses docker_network (no-op if already present)
 # - Preserves existing SSL certificates
 # - Handles configuration updates gracefully
 # - Works with existing Portainer deployments
@@ -38,209 +47,8 @@
   hosts: ubuntu_servers
   become: true
   vars:
-    service_name: "traefik"
+    service_name: traefik
     compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
-    ssl_cert_resolver: "myresolver"
-    
-  tasks:
-    # =============================================================================
-    # SETUP: Directory and Configuration Creation
-    # =============================================================================
-    
-    - name: "Setup - Create Traefik directories"
-      file:
-        path: "{{ item }}"
-        state: directory
-        owner: "{{ ubuntu_primary_user }}"
-        group: "{{ ubuntu_primary_user }}"
-        mode: '0755'
-      loop:
-        - "{{ data_directory }}/{{ service_name }}"
-        - "{{ data_directory }}/{{ service_name }}/acme"
-        - "{{ data_directory }}/{{ service_name }}/config"
-        - "{{ data_directory }}/{{ service_name }}/logs"
-        - "{{ data_directory }}/{{ service_name }}/dynamic"
-
-
-    - name: "Setup - Create SSL certificate file with proper permissions"
-      file:
-        path: "{{ data_directory }}/{{ service_name }}/acme/acme.json"
-        state: touch
-        owner: "{{ ubuntu_primary_user }}"
-        group: "{{ ubuntu_primary_user }}"
-        mode: '0600'
-
-
-    - name: "Setup - Generate Docker Compose file from template"
-      template:
-        src: "traefik-compose.yml.j2"
-        dest: "{{ compose_file }}"
-        owner: "{{ ubuntu_primary_user }}"
-        group: "{{ ubuntu_primary_user }}"
-        mode: '0644'
-        backup: yes
-      register: compose_updated
-
-
-    - name: "Setup - Display compose file location"
-      debug:
-        msg: "Docker Compose file created at: {{ compose_file }}"
-
-    # =============================================================================
-    # DEPLOY: Service Deployment and Management
-    # =============================================================================
-
-    - name: "Deploy - Check for existing containers using Traefik ports"
-      shell: "docker ps | grep -E ':(80|443|8080)->' || true"
-      register: existing_port_containers
-      changed_when: false
-      failed_when: false
-
-
-    - name: "Deploy - Display existing containers using Traefik ports"
-      debug:
-        msg: |
-          🔍 EXISTING CONTAINERS CHECK:
-          {% if existing_port_containers.stdout %}
-          ⚠️  Found existing containers using ports 80, 443, or 8080:
-          {{ existing_port_containers.stdout }}
-          
-          💡 Note: These containers may need to be stopped if they conflict with Traefik
-          💡 If these are Portainer-managed containers, you may need to stop them manually
-          {% else %}
-          ✅ No existing containers found using ports 80, 443, or 8080
-          {% endif %}
-
-
-    - name: "Deploy - Check if containers are already running"
-      command: "docker compose -f {{ compose_file }} ps -q"
-      register: running_containers
-      changed_when: false
-      failed_when: false
-
-
-    - name: "Deploy - Stop existing containers (if compose file changed)"
-      command: "docker compose -f {{ compose_file }} down"
-      when: 
-        - running_containers.stdout != ""
-        - compose_updated.changed
-
-
-    - name: "Deploy - Remove conflicting containers (automatic cleanup)"
-      shell: |
-        # Remove containers with conflicting names (including stopped ones)
-        for container in traefik whoami; do
-          if docker ps -a -q -f name=^${container}$ | grep -q .; then
-            echo "Removing existing container: $container"
-            docker stop $container 2>/dev/null || true
-            docker rm $container 2>/dev/null || true
-          fi
-        done
-      when: existing_port_containers.stdout != ""
-      register: cleanup_result
-      changed_when: "'Removing existing container' in cleanup_result.stdout"
-
-
-    - name: "Deploy - Display cleanup results"
-      debug:
-        msg: |
-          🧹 CONTAINER CLEANUP:
-          {% if cleanup_result.changed %}
-          ✅ Stopped and removed conflicting containers
-          {{ cleanup_result.stdout }}
-          {% else %}
-          ℹ️  No container cleanup needed
-          {% endif %}
-      when: existing_port_containers.stdout != ""
-
-    - name: "Deploy - Pull latest container images"
-      command: "docker compose -f {{ compose_file }} pull"
-      register: pull_result
-      changed_when: "'Downloaded newer image' in pull_result.stdout"
-
-
-    - name: "Deploy - Start Traefik services"
-      command: "docker compose -f {{ compose_file }} up -d"
-      register: deploy_result
-      changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
-
-
-    - name: "Deploy - Wait for services to be ready"
-      wait_for:
-        port: "{{ item }}"
-        host: "{{ ubuntu_server_ip }}"
-        timeout: 60
-      loop:
-        - 80    # HTTP
-        - 443   # HTTPS
-        - 8080  # Traefik Dashboard
-
-    # =============================================================================
-    # VERIFY: Service Verification and Health Checks
-    # =============================================================================
-
-    - name: "Verify - Check container status"
-      command: "docker compose -f {{ compose_file }} ps"
-      register: container_status
-      changed_when: false
-
-
-    - name: "Verify - Display container status"
-      debug:
-        msg: "{{ container_status.stdout_lines }}"
-
-
-    - name: "Verify - Test Traefik dashboard accessibility"
-      uri:
-        url: "http://{{ ubuntu_server_ip }}:8080/api/version"
-        method: GET
-        timeout: 10
-      register: dashboard_test
-      failed_when: false
-
-
-    - name: "Verify - Test whoami service accessibility"
-      uri:
-        url: "http://{{ ubuntu_server_ip }}/api/whoami"
-        method: GET
-        timeout: 10
-        headers:
-          Host: "whoami.{{ base_domain }}"
-      register: whoami_test
-      failed_when: false
-
-
-    - name: "Verify - Check SSL certificate generation (wait up to 2 minutes)"
-      wait_for:
-        path: "{{ data_directory }}/{{ service_name }}/acme/acme.json"
-        search_regex: "certificateUrl"
-        timeout: 120
-      register: ssl_cert_check
-      failed_when: false
-
-
-    - name: "Verify - Display SSL certificate status"
-      debug:
-        msg: |
-          SSL Certificate Status:
-          {% if ssl_cert_check.failed %}
-          ❌ SSL certificates not yet generated (this is normal for initial deployment)
-          💡 Certificates will be generated automatically when services are accessed via HTTPS
-          {% else %}
-          ✅ SSL certificates found in acme.json
-          {% endif %}
-
-    # =============================================================================
-    # SUMMARY: Deployment Summary and Next Steps
-    # =============================================================================
-
-    - name: "Summary - Deployment results"
-      debug:
-        msg: |
-          ✅ Traefik reverse proxy deployed successfully
-          🌐 Dashboard: https://traefik.{{ base_domain }}
-          🔧 Service management: docker compose -f {{ compose_file }} logs -f
-
-
-
- 
+    ssl_cert_resolver: myresolver
+  roles:
+    - traefik

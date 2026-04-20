@@ -43,11 +43,17 @@ services:
 {% endif %}
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.homarr.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.homarr.network }}
+{% endif %}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.homarr.rule=Host(`{{ base_domain }}`)"
       - "traefik.http.routers.homarr.entrypoints=websecure"
       - "traefik.http.routers.homarr.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.homarr.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.homarr.network }}"
+{% endif %}
       - "traefik.http.services.homarr.loadbalancer.server.port=7575"
       # WUD update notifications - Major/Minor only with semantic versioning
       - "wud.watch=true"
@@ -60,4 +66,8 @@ services:
 
 networks:
   {{ homelab_network_name }}:
-    external: true 
+    external: true
+{% if traefik_routed_services.homarr.enabled | default(false) | bool %}
+  {{ traefik_routed_services.homarr.network }}:
+    external: true
+{% endif %}

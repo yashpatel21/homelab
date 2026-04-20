@@ -124,6 +124,9 @@ services:
       - "127.0.0.1:9443:9443"  # HTTPS (internal)
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.authentik.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.authentik.network }}
+{% endif %}
     depends_on:
       authentik_postgresql:
         condition: service_healthy
@@ -137,6 +140,9 @@ services:
       - "traefik.http.routers.authentik.rule=Host(`auth.{{ base_domain }}`)"
       - "traefik.http.routers.authentik.entrypoints=websecure"
       - "traefik.http.routers.authentik.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.authentik.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.authentik.network }}"
+{% endif %}
       - "traefik.http.routers.authentik.service=authentik"
       - "traefik.http.services.authentik.loadbalancer.server.port=9000"
       
@@ -226,3 +232,8 @@ services:
 networks:
   {{ homelab_network_name }}:
     external: true
+{% if traefik_routed_services.authentik.enabled | default(false) | bool %}
+  {{ traefik_routed_services.authentik.network }}:
+    external: true
+{% endif %}
+

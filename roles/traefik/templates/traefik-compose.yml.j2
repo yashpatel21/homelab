@@ -2,14 +2,20 @@
 # =============================================================================
 # Traefik Reverse Proxy with SSL Automation
 # =============================================================================
-# 
-# This Docker Compose file deploys Traefik reverse proxy with:
+#
+# Traefik joins only the external per-service `*-traefik` bridges (and optional
+# vault traefik_side_projects) so it can reach backends that set traefik.docker.network.
+# Create each network in the service playbook; only whoami-traefik is created here.
+# The bundled whoami service may still use `homelab` for optional LAN checks; the
+# traefik container does not attach to homelab.
+#
+# This compose file includes:
 # - Let's Encrypt SSL certificates via Cloudflare DNS challenge
 # - Traefik dashboard with SSL
 # - Whoami test service for SSL verification
 # - WUD labels for update notifications
 #
-# Generated from Ansible template: traefik-compose.yml.j2
+# Generated from Ansible role template: roles/traefik/templates/traefik-compose.yml.j2
 # =============================================================================
 
 services:
@@ -21,45 +27,45 @@ services:
       # API Configuration
       - "--api.insecure=true"
       - "--api.dashboard=true"
-      
+
       # Docker Provider
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      
+
       # File Provider for Dynamic Configuration
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--providers.file.watch=true"
-      
+
       # Entry Points
       - "--entryPoints.web.address=:80"
       - "--entryPoints.websecure.address=:443"
-      
+
       # Let's Encrypt Configuration
       - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge=true"
       - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge.provider=cloudflare"
       - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.email={{ vault_letsencrypt_email }}"
       - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.storage=/letsencrypt/acme.json"
-      
+
       # DNS Challenge Configuration
       - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge.delaybeforecheck=30"
       - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
-      
+
       # Uncomment for testing with staging certificates
       # - "--certificatesresolvers.{{ ssl_cert_resolver }}.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
-      
+
       # Uncomment for debug logging
       # - "--log.level=DEBUG"
-      
+
     ports:
       - "80:80"
       - "443:443"
       - "8080:8080"
-    
+
     environment:
       # Cloudflare API Configuration
       - "CF_DNS_API_TOKEN={{ vault_cloudflare_api_token }}"
       - "CF_ZONE_API_TOKEN={{ vault_cloudflare_api_token }}"
-    
+
     volumes:
       # SSL certificates storage
       - "{{ data_directory }}/traefik/acme:/letsencrypt"
@@ -67,10 +73,19 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       # Dynamic configuration files
       - "{{ data_directory }}/traefik/dynamic:/etc/traefik/dynamic:ro"
-    
+
     networks:
-      - {{ homelab_network_name }}
-    
+{% for _tf_item in traefik_routed_services | dict2items | sort(attribute='key') %}
+{% if _tf_item.value.enabled | default(false) | bool %}
+      - {{ _tf_item.value.network }}
+{% endif %}
+{% endfor %}
+{% for _tf_item in traefik_side_projects | default({}) | dict2items | sort(attribute='key') %}
+{% if _tf_item.value.enabled | default(false) | bool %}
+      - {{ _tf_item.value.network }}
+{% endif %}
+{% endfor %}
+
     labels:
       # WUD update notifications - Major/Minor only with semantic versioning
       - "wud.watch=true"
@@ -80,7 +95,7 @@ services:
       - "wud.trigger.include=command.ntfy"
       - "wud.display.name=Traefik Reverse Proxy"
       - "wud.link.template=https://github.com/traefik/traefik/releases/tag/$${raw}"
-      
+
       # Traefik dashboard routing
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.{{ base_domain }}`)"
@@ -97,10 +112,13 @@ services:
     image: traefik/whoami:v1.11.0
     container_name: "whoami"
     restart: unless-stopped
-    
+
     networks:
       - {{ homelab_network_name }}
-    
+{% if traefik_routed_services.whoami.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.whoami.network }}
+{% endif %}
+
     labels:
       # WUD update notifications - Major/Minor only with semantic versioning
       - "wud.watch=true"
@@ -110,17 +128,31 @@ services:
       - "wud.trigger.include=command.ntfy"
       - "wud.display.name=Traefik Whoami"
       - "wud.link.template=https://github.com/traefik/whoami/releases/tag/$${raw}"
-      
+
       # Traefik routing configuration
       - "traefik.enable=true"
       - "traefik.http.routers.whoami.rule=Host(`whoami.{{ base_domain }}`)"
       - "traefik.http.routers.whoami.entrypoints=websecure"
       - "traefik.http.routers.whoami.tls.certresolver={{ ssl_cert_resolver }}"
-{% if auth_enabled | default(false) %}
-      # Forward authentication to Authentik for SSL test service access
-      - "traefik.http.routers.whoami.middlewares=authentik@file"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+{% if traefik_routed_services.whoami.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.whoami.network }}"
 {% endif %}
+      # Whoami is intentionally not behind Authentik forward auth: lightweight
+      # TLS/routing check without SSO; keep off public DNS/tunnels in production.
 
 networks:
   {{ homelab_network_name }}:
-    external: true 
+    external: true
+{% for _tf_item in traefik_routed_services | dict2items | sort(attribute='key') %}
+{% if _tf_item.value.enabled | default(false) | bool %}
+  {{ _tf_item.value.network }}:
+    external: true
+{% endif %}
+{% endfor %}
+{% for _tf_item in traefik_side_projects | default({}) | dict2items | sort(attribute='key') %}
+{% if _tf_item.value.enabled | default(false) | bool %}
+  {{ _tf_item.value.network }}:
+    external: true
+{% endif %}
+{% endfor %}

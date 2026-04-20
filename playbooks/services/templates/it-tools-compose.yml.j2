@@ -16,6 +16,10 @@
 networks:
   {{ homelab_network_name }}:
     external: true
+{% if traefik_routed_services.it_tools.enabled | default(false) | bool %}
+  {{ traefik_routed_services.it_tools.network }}:
+    external: true
+{% endif %}
 
 services:
   it-tools:
@@ -24,12 +28,18 @@ services:
     restart: always
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.it_tools.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.it_tools.network }}
+{% endif %}
     labels:
       # Traefik configuration
       - "traefik.enable=true"
       - "traefik.http.routers.it-tools.rule=Host(`ittools.{{ base_domain }}`)"
       - "traefik.http.routers.it-tools.entrypoints=websecure"
       - "traefik.http.routers.it-tools.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.it_tools.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.it_tools.network }}"
+{% endif %}
 {% if auth_enabled | default(false) %}
       # Forward authentication to Authentik for developer tools access
       - "traefik.http.routers.it-tools.middlewares=authentik@file"

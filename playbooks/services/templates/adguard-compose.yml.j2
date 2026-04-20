@@ -36,9 +36,12 @@ services:
       - {{ data_directory }}/adguard/work:/opt/adguardhome/work
       - {{ data_directory }}/adguard/conf:/opt/adguardhome/conf
     
-    # Network configuration
+    # Network configuration (homelab = internal DNS; adguard-traefik when enabled = Traefik isolation)
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.adguard.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.adguard.network }}
+{% endif %}
     
     # Service labels
     labels:
@@ -47,6 +50,9 @@ services:
       - "traefik.http.routers.adguard.rule=Host(`adguard.{{ base_domain }}`)"
       - "traefik.http.routers.adguard.entrypoints=websecure"
       - "traefik.http.routers.adguard.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.adguard.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.adguard.network }}"
+{% endif %}
 {% if auth_enabled | default(false) %}
       # Header injection authentication - Authentik SSO with automatic Basic Auth
       - "traefik.http.routers.adguard.middlewares=adguard-auth-chain@file"
@@ -65,4 +71,8 @@ services:
 # Network configuration
 networks:
   {{ homelab_network_name }}:
-    external: true 
+    external: true
+{% if traefik_routed_services.adguard.enabled | default(false) | bool %}
+  {{ traefik_routed_services.adguard.network }}:
+    external: true
+{% endif %}

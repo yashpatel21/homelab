@@ -41,12 +41,18 @@ services:
       - {{ data_directory }}/ntfy/config:/etc/ntfy
     networks:
       - {{ homelab_network_name }}
+{% if traefik_routed_services.ntfy.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.ntfy.network }}
+{% endif %}
     labels:
       # Traefik routing
       - "traefik.enable=true"
       - "traefik.http.routers.ntfy.rule=Host(`ntfy.{{ base_domain }}`)"
       - "traefik.http.routers.ntfy.entrypoints=websecure"
       - "traefik.http.routers.ntfy.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.ntfy.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.ntfy.network }}"
+{% endif %}
 {% if auth_enabled | default(false) %}
       # Forward authentication to Authentik for notification service access
       - "traefik.http.routers.ntfy.middlewares=authentik@file"
@@ -64,4 +70,8 @@ services:
 
 networks:
   {{ homelab_network_name }}:
-    external: true 
+    external: true
+{% if traefik_routed_services.ntfy.enabled | default(false) | bool %}
+  {{ traefik_routed_services.ntfy.network }}:
+    external: true
+{% endif %}

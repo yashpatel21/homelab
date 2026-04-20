@@ -1,0 +1,8 @@
+---
+# Traefik role defaults (override via play vars or group_vars)
+service_name: traefik
+compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
+ssl_cert_resolver: myresolver
+
+# Optional vault-only map; template uses | default({}) if unset
+traefik_side_projects: {}

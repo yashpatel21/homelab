@@ -40,6 +40,7 @@ This project implements a **fully automated, reproducible homelab infrastructure
 -   **Traefik Reverse Proxy** - SSL termination, routing, automatic certificate management
 -   **NTFY Notification Service** - Real-time push notifications with token-based authentication
 -   **AdGuard Home** - DNS filtering with automated OPNsense failover (critical for internet reliability - if AdGuard fails, entire network internet access would be lost without failover)
+-   **Portainer CE** - Browser-based Docker control: inspect what is running, manage Compose stacks, and review logs and disk usage without relying on the CLI for day-to-day work.
 
 ### Phase 3: Supporting Services
 
@@ -185,6 +186,7 @@ Internet → Cloudflare → Pangolin VPS → Encrypted Tunnel → Homelab
 | **Uptime Kuma** | Monitoring        | Authentik Forward Auth     | ✅ Pangolin      |
 | **Traefik**     | Reverse Proxy     | Authentik Forward Auth     | ❌ Internal Only |
 | **AdGuard**     | DNS Filtering     | Authentik Header Injection | ❌ Internal Only |
+| **Portainer**   | Docker UI         | Authentik OIDC             | ❌ Internal Only |
 | **Prometheus**  | Metrics           | Authentik Forward Auth     | ❌ Internal Only |
 | **WUD**         | Update Monitoring | Authentik OIDC             | ❌ Internal Only |
 

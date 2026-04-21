@@ -90,6 +90,9 @@ traefik_routed_services:
   adguard:
     enabled: true
     network: "adguard-traefik"
+  portainer:
+    enabled: true
+    network: "portainer-traefik"
   ntfy:
     enabled: true
     network: "ntfy-traefik"
@@ -136,6 +139,10 @@ services:
   ntfy:
     port: "80"
     domain: "ntfy.{{ base_domain }}"
+
+  portainer:
+    port: "9000"
+    domain: "portainer.{{ base_domain }}"
 
   uptime_kuma:
     port: "3001"

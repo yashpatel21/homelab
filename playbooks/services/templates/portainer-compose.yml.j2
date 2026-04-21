@@ -1,0 +1,54 @@
+---
+# =============================================================================
+# Portainer CE Docker Compose Configuration
+# =============================================================================
+#
+# This Docker Compose file deploys Portainer CE with:
+# - Traefik HTTPS (TLS at edge; Portainer HTTP on 9000 behind Traefik)
+# - WUD labels for update notifications
+# - homelab + optional portainer-traefik (Traefik does not use homelab)
+# - Docker socket read-only
+#
+# Authentication: configure OIDC with Authentik in the Portainer UI (see
+# docs/phase-5/deploy-authentik.md).
+#
+# Generated from Ansible template: portainer-compose.yml.j2
+# =============================================================================
+
+networks:
+  {{ homelab_network_name }}:
+    external: true
+{% if traefik_routed_services.portainer.enabled | default(false) | bool %}
+  {{ traefik_routed_services.portainer.network }}:
+    external: true
+{% endif %}
+
+services:
+  portainer:
+    image: portainer/portainer-ce:2.40.0
+    container_name: portainer
+    restart: always
+    networks:
+      - {{ homelab_network_name }}
+{% if traefik_routed_services.portainer.enabled | default(false) | bool %}
+      - {{ traefik_routed_services.portainer.network }}
+{% endif %}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "{{ data_directory }}/portainer:/data"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portainer.rule=Host(`portainer.{{ base_domain }}`)"
+      - "traefik.http.routers.portainer.entrypoints=websecure"
+      - "traefik.http.routers.portainer.tls.certresolver={{ ssl_cert_resolver }}"
+{% if traefik_routed_services.portainer.enabled | default(false) | bool %}
+      - "traefik.docker.network={{ traefik_routed_services.portainer.network }}"
+{% endif %}
+      - "traefik.http.services.portainer.loadbalancer.server.port=9000"
+      # WUD — Portainer CE uses semver tags (e.g. 2.40.0)
+      - "wud.watch=true"
+      - "wud.tag.include=^\\d+\\.\\d+\\.\\d+$"
+      - "wud.tag.exclude=alpha|beta|rc|dev"
+      - "wud.trigger.include=command.ntfy"
+      - "wud.display.name=Portainer CE"
+      - "wud.link.template=https://github.com/portainer/portainer/releases/tag/$${raw}"

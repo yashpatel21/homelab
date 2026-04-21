@@ -296,64 +296,14 @@ vault_authentik_nextcloud_client_id: "nextcloud"
 vault_authentik_nextcloud_client_secret: "REPLACE_WITH_NEXTCLOUD_OIDC_SECRET"
 vault_authentik_wud_client_id: "wud"
 vault_authentik_wud_client_secret: "REPLACE_WITH_WUD_OIDC_SECRET"
+vault_authentik_portainer_client_id: "portainer"
+vault_authentik_portainer_client_secret: "REPLACE_WITH_PORTAINER_OIDC_SECRET"
 
 # How to generate OIDC client secrets:
 # Run: openssl rand -base64 48
 # Generate a unique secret for each service
 # These will be configured in Authentik web interface during setup
 # Keep these secrets secure - they authenticate your services to Authentik
-
-# -----------------------------------------------------------------------------
-# EXAMPLE COMPLETED VAULT FILE
-# =============================================================================
-#
-# Here's what the completed vault.yml should look like (with real values):
-#
-# vault_cloudflare_api_token: "your-cloudflare-api-token"
-# vault_cloudflare_account_id: "your-cloudflare-account-id"
-# vault_cloudflare_zone_id: "your-cloudflare-zone-id"
-# ssh_public_keys:
-#   - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@laptop"
-# vault_ntfy_token: "your-ntfy-token"
-# vault_ntfy_admin_password: "your-secure-admin-password"
-# vault_ntfy_monitor_password: "your-secure-monitor-password"
-# vault_ntfy_reader_password: "your-secure-reader-password"
-# vault_proxmox_api_token: "your-proxmox-api-token"
-# vault_homarr_encryption_key: "abc123def456789abcdef123456789abcdef123456789abcdef123456789abc"
-# vault_adguard_monitoring_username: "your-monitoring-username"
-# vault_adguard_monitoring_password: "your-secure-monitoring-password"
-# vault_grafana_admin_password: "your-secure-grafana-password"
-# vault_grafana_secret_key: "your-base64-encoded-secret-key"
-# vault_opnsense_api_key: "your-opnsense-api-key"
-# vault_opnsense_api_secret: "your-opnsense-api-secret"
-# vault_nextcloud_aio_passphrase: "your-aio-passphrase-from-initial-setup"
-# vault_nextcloud_borg_backup_password: "your-borg-backup-encryption-password"
-# vault_convertx_jwt_secret: "your-base64-encoded-jwt-secret"
-# vault_letsencrypt_email: "your-email@example.com"
-# vault_pangolin_vps_ip: "your-pangolin-vps-ip"
-# vault_pangolin_vps_user: "your-pangolin-vps-user"
-# vault_pangolin_vps_password: "your-secure-vps-password"
-# vault_pangolin_endpoint: "your-pangolin-endpoint"
-# vault_newt_id: "your-newt-id"
-# vault_newt_secret: "your-newt-secret"
-# vault_turnstile_site_key: "your-turnstile-site-key"
-# vault_turnstile_secret_key: "your-turnstile-secret-key"
-# vault_adguard_admin_username: "your-adguard-admin-username"
-# vault_adguard_admin_password: "your-current-adguard-admin-password"
-# vault_authentik_postgres_password: "your-secure-postgres-password"
-# vault_authentik_secret_key: "your-64-character-hex-secret-key"
-# vault_authentik_email_host: "your-email-host"
-# vault_authentik_email_port: "your-email-port"
-# vault_authentik_email_username: "your-email-username"
-# vault_authentik_email_password: "your-email-password"
-# vault_authentik_grafana_client_id: "your-grafana-client-id"
-# vault_authentik_grafana_client_secret: "your-base64-grafana-oidc-secret"
-# vault_authentik_homarr_client_id: "your-homarr-client-id"
-# vault_authentik_homarr_client_secret: "your-base64-homarr-oidc-secret"
-# vault_authentik_nextcloud_client_id: "your-nextcloud-client-id"
-# vault_authentik_nextcloud_client_secret: "your-base64-nextcloud-oidc-secret"
-#
-# =============================================================================
 
 # -----------------------------------------------------------------------------
 # SECURITY REMINDERS

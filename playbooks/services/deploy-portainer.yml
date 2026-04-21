@@ -1,0 +1,161 @@
+---
+# =============================================================================
+# PHASE 2: Core Services - Portainer CE Deployment
+# =============================================================================
+#
+# This playbook deploys Portainer CE for container management and ad-hoc stacks.
+#
+# Prerequisites:
+# - Phase 1 infrastructure (Docker, homelab network)
+# - Traefik, NTFY, and AdGuard deployed (recommended order before Portainer)
+# - DNS override for portainer.{{ base_domain }}
+# - traefik_routed_services.portainer.enabled in vars.yml when using isolation
+#
+# Usage:
+# ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-portainer.yml --ask-vault-pass
+# =============================================================================
+
+- name: Deploy Portainer CE
+  hosts: ubuntu_servers
+  become: true
+  vars:
+    service_name: "portainer"
+    compose_file: "{{ data_directory }}/compose/{{ service_name }}-compose.yml"
+    ssl_cert_resolver: "myresolver"
+
+  tasks:
+    # =============================================================================
+    # SETUP: Directories and Compose
+    # =============================================================================
+
+    - name: "Setup - Create Portainer data directory"
+      file:
+        path: "{{ data_directory }}/portainer"
+        state: directory
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: "0755"
+
+    - name: "Setup - Generate Docker Compose file from template"
+      template:
+        src: "portainer-compose.yml.j2"
+        dest: "{{ compose_file }}"
+        owner: "{{ ubuntu_primary_user }}"
+        group: "{{ ubuntu_primary_user }}"
+        mode: "0644"
+        backup: yes
+      register: compose_updated
+
+    - name: "Setup - Ensure dedicated Traefik Docker network exists (Portainer)"
+      docker_network:
+        name: "{{ traefik_routed_services.portainer.network }}"
+        driver: bridge
+        enable_ipv6: true
+      when: traefik_routed_services.portainer.enabled | default(false) | bool
+
+    - name: "Setup - Display configuration file locations"
+      debug:
+        msg: |
+          📋 PORTAINER CONFIGURATION:
+          • Docker Compose file: {{ compose_file }}
+          • Data directory: {{ data_directory }}/portainer
+
+    # =============================================================================
+    # DEPLOY
+    # =============================================================================
+
+    - name: "Deploy - Check for existing Portainer containers"
+      shell: "docker ps -a | grep -w portainer || true"
+      register: existing_containers
+      changed_when: false
+      failed_when: false
+
+    - name: "Deploy - Display existing container status"
+      debug:
+        msg: |
+          🔍 PORTAINER DEPLOYMENT CHECK:
+          {% if existing_containers.stdout %}
+          {{ existing_containers.stdout }}
+          {% else %}
+          ✅ No existing Portainer container found
+          {% endif %}
+
+    - name: "Deploy - Check if containers are already running"
+      command: "docker compose -f {{ compose_file }} ps -q"
+      register: running_containers
+      changed_when: false
+      failed_when: false
+
+    - name: "Deploy - Stop existing containers (if compose file changed)"
+      command: "docker compose -f {{ compose_file }} down"
+      when:
+        - running_containers.stdout != ""
+        - compose_updated.changed
+
+    - name: "Deploy - Remove conflicting containers (automatic cleanup)"
+      shell: |
+        if docker ps -a -q -f name=^portainer$ | grep -q .; then
+          echo "Removing existing container: portainer"
+          docker stop portainer 2>/dev/null || true
+          docker rm portainer 2>/dev/null || true
+        fi
+      register: cleanup_result
+      changed_when: "'Removing existing container' in cleanup_result.stdout"
+
+    - name: "Deploy - Pull latest container images"
+      command: "docker compose -f {{ compose_file }} pull"
+      register: pull_result
+      changed_when: "'Downloaded newer image' in pull_result.stdout"
+
+    - name: "Deploy - Start Portainer service"
+      command: "docker compose -f {{ compose_file }} up -d"
+      register: deploy_result
+      changed_when: "'Started' in deploy_result.stderr or 'Created' in deploy_result.stderr"
+
+    - name: "Deploy - Redeploy Traefik to join Portainer Traefik network"
+      ansible.builtin.include_role:
+        name: traefik
+      vars:
+        service_name: traefik
+        compose_file: "{{ data_directory }}/compose/traefik-compose.yml"
+      when: traefik_routed_services.portainer.enabled | default(false) | bool
+
+    # =============================================================================
+    # VERIFY
+    # =============================================================================
+
+    - name: "Verify - Check container status"
+      command: "docker compose -f {{ compose_file }} ps"
+      register: container_status
+      changed_when: false
+
+    - name: "Verify - Display container status"
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+
+    - name: "Verify - Test Portainer via Traefik"
+      uri:
+        url: "https://portainer.{{ base_domain }}"
+        method: GET
+        timeout: 15
+        validate_certs: false
+        status_code: [ 200, 302 ]
+      register: traefik_test
+      failed_when: false
+
+    - name: "Verify - Display access test results"
+      debug:
+        msg: |
+          📡 PORTAINER ACCESS TEST:
+          {% if traefik_test is defined and traefik_test.status is defined %}
+          • HTTPS: {{ '✅ ' + (traefik_test.status | string) if traefik_test.status in [200, 302] else '❌ HTTP ' + (traefik_test.status | string) }}
+          {% else %}
+          • HTTPS: ⏳ Certificate or routing may still be settling
+          {% endif %}
+          • URL: https://portainer.{{ base_domain }}
+
+    - name: "Summary - Portainer deployment"
+      debug:
+        msg: |
+          ✅ Portainer CE: https://portainer.{{ base_domain }}
+          📖 Configure OAuth to Authentik in Portainer after first admin setup (see docs/phase-5/deploy-authentik.md).

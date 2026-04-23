@@ -603,21 +603,18 @@
 
 
 
-    - name: "Scripts - Check if Ubuntu update check cron job already exists"
-      shell: "crontab -l -u {{ ubuntu_primary_user }} | grep -F 'check-updates.sh' || echo 'not found'"
-      register: ubuntu_cron_check
-      changed_when: false
-      failed_when: false
-      when: scripts_vault_token_available
-
-
     - name: "Scripts - Configure Ubuntu update check cron job"
-      shell: |
-        # Get current crontab for user, add our job if not present, then install new crontab
-        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "{{ update_check_schedules.ubuntu_vm }}	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
-      when: 
-        - scripts_vault_token_available
-        - "'not found' in ubuntu_cron_check.stdout"
+      cron:
+        name: "Ubuntu update check"
+        user: "{{ ubuntu_primary_user }}"
+        minute: "{{ update_check_schedules.ubuntu_vm.split(' ')[0] }}"
+        hour: "{{ update_check_schedules.ubuntu_vm.split(' ')[1] }}"
+        day: "{{ update_check_schedules.ubuntu_vm.split(' ')[2] }}"
+        month: "{{ update_check_schedules.ubuntu_vm.split(' ')[3] }}"
+        weekday: "{{ update_check_schedules.ubuntu_vm.split(' ')[4] }}"
+        job: "{{ data_directory }}/scripts/check-updates.sh"
+        state: present
+      when: scripts_vault_token_available
 
 
     - name: "Scripts - Verify scripts are executable"
@@ -674,21 +671,18 @@
 
 
 
-    - name: "Ubuntu Scripts - Check if Ubuntu update check cron job already exists"
-      shell: "crontab -l -u {{ ubuntu_primary_user }} | grep -F 'check-updates.sh' || echo 'not found'"
-      register: ubuntu_scripts_cron_check
-      changed_when: false
-      failed_when: false
-      when: has_vault_token
-
-
     - name: "Ubuntu Scripts - Configure Ubuntu update check cron job"
-      shell: |
-        # Get current crontab for user, add our job if not present, then install new crontab
-        (crontab -l -u {{ ubuntu_primary_user }} 2>/dev/null || echo ""; echo "{{ update_check_schedules.ubuntu_vm }}	{{ data_directory }}/scripts/check-updates.sh") | crontab -u {{ ubuntu_primary_user }} -
-      when: 
-        - has_vault_token
-        - "'not found' in ubuntu_scripts_cron_check.stdout"
+      cron:
+        name: "Ubuntu update check"
+        user: "{{ ubuntu_primary_user }}"
+        minute: "{{ update_check_schedules.ubuntu_vm.split(' ')[0] }}"
+        hour: "{{ update_check_schedules.ubuntu_vm.split(' ')[1] }}"
+        day: "{{ update_check_schedules.ubuntu_vm.split(' ')[2] }}"
+        month: "{{ update_check_schedules.ubuntu_vm.split(' ')[3] }}"
+        weekday: "{{ update_check_schedules.ubuntu_vm.split(' ')[4] }}"
+        job: "{{ data_directory }}/scripts/check-updates.sh"
+        state: present
+      when: has_vault_token
 
 
     - name: "Ubuntu Scripts - Verify scripts are executable"
@@ -886,21 +880,18 @@
 
 
 
-    - name: "Proxmox - Check if update check cron job already exists"
-      shell: "crontab -l | grep -F '/usr/local/bin/proxmox-update-check.sh' || echo 'not found'"
-      register: proxmox_cron_check
-      changed_when: false
-      failed_when: false
-      when: has_vault_token
-
-
     - name: "Proxmox - Configure update check cron job"
-      shell: |
-        # Get current crontab, add our job if not present, then install new crontab
-        (crontab -l 2>/dev/null || echo ""; echo "{{ update_check_schedules.proxmox }}	/usr/local/bin/proxmox-update-check.sh") | crontab -
-      when: 
-        - has_vault_token
-        - "'not found' in proxmox_cron_check.stdout"
+      cron:
+        name: "Proxmox update check"
+        user: "root"
+        minute: "{{ update_check_schedules.proxmox.split(' ')[0] }}"
+        hour: "{{ update_check_schedules.proxmox.split(' ')[1] }}"
+        day: "{{ update_check_schedules.proxmox.split(' ')[2] }}"
+        month: "{{ update_check_schedules.proxmox.split(' ')[3] }}"
+        weekday: "{{ update_check_schedules.proxmox.split(' ')[4] }}"
+        job: "/usr/local/bin/proxmox-update-check.sh"
+        state: present
+      when: has_vault_token
 
 
     - name: "Proxmox - Run update check script immediately (test notifications)"

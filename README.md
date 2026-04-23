@@ -28,7 +28,7 @@ This project implements a **fully automated, reproducible homelab infrastructure
 **Base system configuration and security hardening**
 
 -   **Base System Setup** - Ubuntu Server hardening, user management, SSH configuration
--   **Storage Configuration** - Docker volumes, backup directories, persistent storage
+-   **Storage Configuration** - VM disks on Proxmox directory storage; data volumes and layout on the **Ubuntu services host** via Ansible; **NFS** on the hypervisor for **VM backups** to a NAS; **NFS** on the services host for app-level backups (e.g. Borg) to the same NAS
 -   **Docker Installation** - Container runtime with security configurations
 -   **SSL Certificate Management** - Let's Encrypt automation for management interfaces
 -   **VPN Access** - WireGuard setup for secure remote administration

@@ -40,6 +40,11 @@ storage_directory: "/storage"
 storage_device: "/dev/sdb" # 2TB drive for Ubuntu VM
 proxmox_storage_device: "/dev/sda" # 2TB drive for Proxmox host
 
+# NFS: persistent mount for Nextcloud backup target (NFS server export)
+nextcloud_nfs_backups_host: "192.168.1.30"
+nextcloud_nfs_backups_export: "/Volume1/nextcloud-backups"
+nextcloud_nfs_backups_mount: "/mnt/nextcloud-backups"
+
 # -----------------------------------------------------------------------------
 # SYSTEM CONFIGURATION
 # -----------------------------------------------------------------------------

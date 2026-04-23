@@ -112,6 +112,7 @@
           - unzip
           - apache2-utils
           - software-properties-common
+          - nfs-common
         state: present
 
     # -------------------------------------------------------------------------
@@ -150,8 +151,14 @@
         line: "{{ item.line }}"
         create: yes
       loop:
-        - { regexp: "^APT::Periodic::Update-Package-Lists", line: "APT::Periodic::Update-Package-Lists \"1\";" }
-        - { regexp: "^APT::Periodic::Unattended-Upgrade", line: "APT::Periodic::Unattended-Upgrade \"1\";" }
+        - {
+            regexp: "^APT::Periodic::Update-Package-Lists",
+            line: "APT::Periodic::Update-Package-Lists \"1\";",
+          }
+        - {
+            regexp: "^APT::Periodic::Unattended-Upgrade",
+            line: "APT::Periodic::Unattended-Upgrade \"1\";",
+          }
 
   handlers:
     - name: apply netplan

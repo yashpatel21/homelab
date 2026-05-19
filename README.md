@@ -93,33 +93,3 @@ Internet → Cloudflare → Pangolin VPS → Encrypted Tunnel → Homelab
 | **Portainer**   | Docker UI         | Authentik OIDC             | ❌ Internal Only |
 | **Prometheus**  | Metrics           | Authentik Forward Auth     | ❌ Internal Only |
 | **WUD**         | Update Monitoring | Authentik OIDC             | ❌ Internal Only |
-
-## Quick Start
-
-### Prerequisites
-
--   Ansible installed (conda environment provided)
--   Proxmox VE with Ubuntu Server 22.04+ VM or bare metal Ubuntu Server
--   Domain name with Cloudflare DNS management
--   VPS for external access (optional)
-
-### Deployment
-
-```bash
-# 1. Setup Ansible environment
-conda env create -f environment.yml
-conda activate homelab
-
-# 2. Configure variables
-cd inventory/group_vars/all
-cp vault_template.yml vault.yml
-# Edit vault.yml with your values
-ansible-vault encrypt vault.yml
-
-# 3. Deploy infrastructure
-ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-base.yml --ask-vault-pass
-
-# 4. Deploy services as needed (set traefik_routed_services in inventory/group_vars/all/vars.yml per service before each deploy-* playbook)
-ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-traefik.yml --ask-vault-pass
-# Continue with remaining services...
-```

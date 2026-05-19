@@ -1,152 +1,60 @@
 # Homelab Infrastructure
 
-A comprehensive Infrastructure as Code (IaC) solution for deploying enterprise-grade homelab services using Ansible automation, Docker containerization, and modern DevOps practices.
+Infrastructure as Code (IaC) for a personal homelab: Ansible playbooks, Docker Compose stacks, and encrypted secrets via Ansible Vault. Playbooks deploy the host, containers, reverse proxy, SSO, monitoring, and tunnel-based external access.
 
-## Architecture Overview
+## Stack
 
-This project implements a **fully automated, reproducible homelab infrastructure** across 5 deployment phases, featuring enterprise-grade security, comprehensive monitoring, and secure external access capabilities.
+### Host and platform
 
-### Core Technologies
+Base system configuration and security hardening on the Ubuntu services host:
 
--   **Ansible** - Infrastructure automation and configuration management
--   **Docker & Docker Compose** - Containerized service deployment
--   **Ansible Vault** - Encrypted secrets management
--   **Traefik** - Reverse proxy with automated SSL certificate management
--   **Authentik** - Single Sign-On (SSO) and identity management with OIDC/SAML2/LDAP support
--   **Prometheus & Grafana** - Infrastructure monitoring with custom dashboards and OPNsense integration
--   **CrowdSec** - Intrusion Detection/Prevention System (IDS/IPS) with behavioral analysis
--   **NTFY** - Real-time push notification service with token authentication
--   **AdGuard Home** - DNS filtering with automated OPNsense failover for internet reliability
--   **Uptime Kuma** - Service availability monitoring with multi-channel notifications
--   **WUD** - Docker container update monitoring with selective management
--   **Pangolin & Newt** - Secure tunneling for external access without port forwarding
+-   **Base System Setup** - Ubuntu Server hardening, user management, SSH configuration.
+-   **Storage Configuration** - Proxmox directory storage for VM disks. Ansible configures data volumes on the **Ubuntu services host**. **NFS** on the hypervisor sends **VM backups** to a NAS. **NFS** on the services host sends app-level backups (e.g. Nextcloud BorgBackup) to the same NAS.
+-   **Docker & Docker Compose** - Containerized service deployment. Container runtime with security configurations on the daemon.
+-   **VPN Access** - WireGuard setup for secure remote administration.
+-   **Ansible** - Infrastructure automation and configuration management. Declarative, version-controlled playbooks and vars for repeatable deploys. Idempotent tasks (intended to be re-run without unintended drift). Public variables in `vars.yml`, encrypted secrets in Vault.
+-   **Ansible Vault** - Encrypted secrets management. Sensitive values in `vault.yml`. Credentials and tokens referenced from playbooks.
 
-## Deployment Phases
+### Core infrastructure services
 
-### Phase 1: Infrastructure Foundation
-
-**Base system configuration and security hardening**
-
--   **Base System Setup** - Ubuntu Server hardening, user management, SSH configuration
--   **Storage Configuration** - VM disks on Proxmox directory storage; data volumes and layout on the **Ubuntu services host** via Ansible; **NFS** on the hypervisor for **VM backups** to a NAS; **NFS** on the services host for app-level backups (e.g. Borg) to the same NAS
--   **Docker Installation** - Container runtime with security configurations
--   **SSL Certificate Management** - Let's Encrypt automation for management interfaces
--   **VPN Access** - WireGuard setup for secure remote administration
-
-### Phase 2: Core Services
-
-**Essential infrastructure services with automated failover**
-
--   **Traefik Reverse Proxy** - SSL termination, routing, automatic certificate management
--   **NTFY Notification Service** - Real-time push notifications with token-based authentication
--   **AdGuard Home** - DNS filtering with automated OPNsense failover (critical for internet reliability - if AdGuard fails, entire network internet access would be lost without failover)
+-   **Traefik Reverse Proxy** - Reverse proxy with SSL termination and routing. Let's Encrypt certificates (Cloudflare DNS challenge) for any service that has a Traefik router enabled in its playbook and `traefik_routed_services`.
+-   **AdGuard Home** - DNS filtering with blocklists. Automatic failover to Cloudflare DNS configured in OPNsense (without failover, the network loses DNS if AdGuard fails).
+-   **NTFY Notification Service** - Real-time push notifications with token-based authentication. Alerts from monitoring, deploy scripts, backup jobs, and weekly system update checks.
 -   **Portainer CE** - Browser-based Docker control: inspect what is running, manage Compose stacks, and review logs and disk usage without relying on the CLI for day-to-day work.
 
-### Phase 3: Supporting Services
+### Monitoring, dashboards, and operations
 
-**Monitoring, dashboards, and operational tools**
+-   **Prometheus + Grafana** - Infrastructure monitoring with custom Grafana dashboards built from Prometheus scrape targets: host resource usage (CPU, memory, disk) via node_exporter, network metrics from OPNsense, container metrics from cAdvisor, DNS metrics from AdGuard Home (adguard-exporter), and uptime check metrics from Uptime Kuma.
+-   **Uptime Kuma** - Service availability and uptime monitoring. Notifies with NTFY on failure.
+-   **WUD (What's Up Docker)** - Docker container update monitoring and selective update notifications. Image bumps via playbooks.
+-   **Homarr Dashboard** - Centralized service dashboard with Proxmox, Docker, and AdGuard Home integration.
 
--   **Homarr Dashboard** - Centralized service dashboard with Proxmox integration
--   **Uptime Kuma** - Service monitoring with multi-notification channels
--   **WUD (What's Up Docker)** - Container update notifications with selective management
--   **Prometheus + Grafana** - Infrastructure monitoring with custom dashboards and OPNsense integration
+### Authentication and external access
 
-### Phase 4: Productivity Services
-
-**Productivity and utility platforms**
-
--   **Nextcloud All-in-One** - File synchronization, collaboration, and productivity suite
--   **IT Tools** - 100+ developer and IT utilities collection
--   **ConvertX** - Universal file conversion service supporting 1000+ formats
-
-### Phase 5: Authentication & External Access
-
-**Enterprise security and secure external access**
-
--   **Authentik SSO** - Complete identity management with OIDC/SAML2/LDAP support
+-   **Authentik SSO** - Single Sign-On (SSO) and identity management with OIDC/SAML2/LDAP support. Centralized authentication for web apps. Role-Based Access Control with per-service and per-group permissions.
     -   PostgreSQL backend for user data
     -   Redis caching for performance
     -   Forward auth and native OIDC integration
     -   Email recovery with custom templates
--   **🔗 Pangolin Secure Tunneling** - External access without port forwarding
-    -   VPS-based server deployment
-    -   Encrypted tunnel connections
-    -   Resource-based service exposure
--   **CrowdSec Security** - Advanced threat protection
-    -   Behavioral analysis and threat detection
+-   **Pangolin & Newt** - Secure tunneling for external access without port forwarding. VPS-based server, encrypted WireGuard connections, resource-based service exposure. Pangolin/Newt terminates on Traefik on the host (no inbound port forward on the home router).
+
+### Security and isolation
+
+-   **CrowdSec** - IDS/IPS with behavioral analysis, community blocklists, local decisions, automated response, and decision management.
     -   Cloudflare Turnstile captcha integration
-    -   Automated decision management
+-   **System Hardening** - Ubuntu security configurations and firewall rules.
+-   **Container Isolation** - Shared `homelab` bridge for east-west traffic between core services, plus dedicated `*-traefik` bridges between Traefik and each HTTPS-routed app (`traefik_routed_services` in `vars.yml`).
+-   **Logging** - Docker container logs and host/journal logs as configured per service.
 
-## Security Features
+### Personal apps
 
-### Infrastructure Security
+-   **Nextcloud All-in-One** - File synchronization, collaboration, and productivity suite.
+-   **IT Tools** - 100+ developer and IT utilities collection.
+-   **ConvertX** - Universal file conversion service supporting 1000+ formats.
 
--   **Encrypted Secrets Management** - All sensitive data stored in Ansible Vault
--   **SSL/TLS Everywhere** - Automated certificate management for all services
--   **Container Isolation** - Docker containerization on the shared `homelab` bridge for east-west traffic, plus dedicated `*-traefik` bridges between Traefik and each HTTPS-routed app (`traefik_routed_services` in `vars.yml`)
--   **System Hardening** - Ubuntu security configurations and firewall rules
+## Architecture
 
-### Authentication & Access Control
-
--   **Single Sign-On (SSO)** - Centralized authentication via Authentik
--   **Token-Based Authentication** - TOTP capability available in Authentik
--   **Role-Based Access Control** - Granular permissions per service and user group
--   **Secure External Access** - Encrypted tunneling without direct internet exposure
-
-### Monitoring & Threat Detection
-
--   **Real-time Monitoring** - Prometheus metrics with Grafana visualization
--   **Behavioral Analysis** - CrowdSec threat detection with automated response
--   **Proactive Notifications** - NTFY integration for immediate issue alerts
--   **Comprehensive Logging** - Centralized log collection and analysis
-
-## Monitoring & Observability
-
-### Infrastructure Monitoring
-
--   **System Metrics** - CPU, memory, disk, network monitoring via Prometheus
--   **Service Health** - Uptime Kuma monitoring with multi-channel notifications
--   **Container Updates** - WUD monitoring for Docker image updates
--   **Network Performance** - OPNsense integration with custom Grafana dashboards
-
-### Automated Notifications
-
--   **Update Notifications** - Weekly system update checks with NTFY alerts
--   **Service Monitoring** - Real-time uptime monitoring with immediate notifications
--   **DNS Failover** - Automatic AdGuard failover with OPNsense integration
-
-### Custom Dashboards
-
--   **Unified Monitoring** - Single Grafana dashboard for infrastructure overview
--   **Service Status** - Homarr dashboard with integrated service health
--   **Security Overview** - CrowdSec decision tracking and threat analysis
-
-## DevOps Practices
-
-### Infrastructure as Code
-
--   **Declarative Configuration** - All infrastructure defined in version-controlled code
--   **Reproducible Deployments** - Identical environments via automated playbooks
--   **Idempotent Operations** - Safe execution of automation without side effects
--   **Environment Separation** - Public variables and encrypted secrets management
-
-### Configuration Management
-
--   **Zero-Touch Deployment** - Fully automated service provisioning via Ansible
--   **Configuration Templating** - Jinja2 templates for dynamic configuration generation
--   **Dependency Management** - Proper service ordering and health checks
--   **Rollback Capabilities** - Safe deployment practices with rollback procedures
-
-### Container Orchestration
-
--   **Docker Compose** - Service definitions with proper networking and volumes
--   **Health Checks** - Container health monitoring and automatic restarts
--   **Resource Management** - CPU and memory limits for stable operations
--   **Update Strategies** - Controlled container updates with minimal downtime
-
-## 🔧 Technical Implementation
-
-### Service Architecture
+### Request path
 
 ```
 Internet → Cloudflare → Pangolin VPS → Encrypted Tunnel → Homelab
@@ -158,19 +66,15 @@ Internet → Cloudflare → Pangolin VPS → Encrypted Tunnel → Homelab
                                           Individual Services
 ```
 
-### Network Flow
+## Deployment and data
 
--   **External Traffic** - Cloudflare DNS → Pangolin tunneling → Traefik reverse proxy
--   **Authentication** - Authentik SSO with forward auth and OIDC integration
--   **Internal Communication** - `homelab` for stack-to-stack DNS; Traefik reaches public web apps only over each service’s `*-traefik` bridge (labels `traefik.docker.network`, file routes where used)
--   **Monitoring Data** - Prometheus metrics collection → Grafana visualization
-
-### Data Management
-
--   **Persistent Storage** - Docker volumes for service data persistence
--   **Backup Strategy** - Automated backup scheduling with notification integration
--   **Configuration Management** - Template-based configuration with environment variables
--   **Secrets Handling** - Ansible Vault encryption for all sensitive data
+-   **Playbook-driven deploys** - Services brought up via `deploy-*.yml` playbooks.
+-   **Configuration Templating** - Jinja2 templates for dynamic configuration generation, rendered with environment variables on the host.
+-   **Dependency Management** - Service ordering and health checks in playbooks.
+-   **Docker Compose** - Per-service compose templates with networks, volumes, and automatic restarts.
+-   **Rollback** - Documented/manual steps where playbooks support reverting config or images.
+-   **Persistent Storage** - Docker volumes for service data persistence.
+-   **Backup Strategy** - Automated backup scheduling with notification integration.
 
 ## Service Matrix
 
@@ -215,7 +119,7 @@ ansible-vault encrypt vault.yml
 # 3. Deploy infrastructure
 ansible-playbook -i inventory/homelab.yml playbooks/infrastructure/setup-base.yml --ask-vault-pass
 
-# 4. Deploy services by phase (set traefik_routed_services in inventory/group_vars/all/vars.yml per service before each deploy-* playbook)
+# 4. Deploy services as needed (set traefik_routed_services in inventory/group_vars/all/vars.yml per service before each deploy-* playbook)
 ansible-playbook -i inventory/homelab.yml playbooks/services/deploy-traefik.yml --ask-vault-pass
 # Continue with remaining services...
 ```
